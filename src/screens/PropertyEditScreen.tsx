@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StatusBar, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, StatusBar, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useApp } from '../data/AppContext';
 import { newId, Immobilie } from '../data/model';
-import { TopBar, SectionLabel, Card, FieldRow, TextField, PrimaryButton } from '../components/UI';
+import { parseDateInput, isoToDE } from '../data/dateUtils';
+import { TopBar, SectionLabel, Card, FieldRow, TextField, DateField, PrimaryButton } from '../components/UI';
 
 const num = (s: string) => { const n = parseFloat(s.replace(',', '.')); return isNaN(n) ? 0 : n; };
 
@@ -18,30 +19,42 @@ export default function PropertyEditScreen() {
 
   const [f, setF] = useState({
     name: ex?.name ?? '',
-    kreditsumme: ex && ex.kreditsumme ? String(ex.kreditsumme) : '',
-    sollzinsProzent: ex && ex.sollzinsProzent ? String(ex.sollzinsProzent) : '',
-    laufzeitMonate: ex && ex.laufzeitMonate ? String(ex.laufzeitMonate) : '',
-    kreditStart: ex?.kreditStart ?? '',
-    kaltmiete: ex && ex.kaltmiete ? String(ex.kaltmiete) : '',
-    warmmiete: ex && ex.warmmiete ? String(ex.warmmiete) : '',
-    nebenkosten: ex && ex.nebenkosten ? String(ex.nebenkosten) : '',
-    vermietetSeit: ex?.vermietetSeit ?? '',
+    kaufDatum: ex?.kaufDatum ? isoToDE(ex.kaufDatum) : '',
+    kaufpreis: ex && ex.kaufpreis ? String(ex.kaufpreis) : '',
+    kaufnebenkosten: ex && ex.kaufnebenkosten ? String(ex.kaufnebenkosten) : '',
+    eigenkapital: ex && ex.eigenkapital ? String(ex.eigenkapital) : '',
   });
   const set = (k: keyof typeof f) => (v: string) => setF(s => ({ ...s, [k]: v }));
 
   const save = () => {
     if (!f.name.trim()) { Alert.alert('Name fehlt', 'Bitte einen Namen eingeben.'); return; }
+    const kaufDatumISO = f.kaufDatum ? parseDateInput(f.kaufDatum) : null;
+    if (f.kaufDatum && !kaufDatumISO) { Alert.alert('Kaufdatum', 'Bitte gültiges Datum (TT.MM.JJJJ) oder leer.'); return; }
+
     const p: Immobilie = {
       id: editId ?? newId('imm'),
       name: f.name.trim(),
-      kreditsumme: num(f.kreditsumme),
-      sollzinsProzent: num(f.sollzinsProzent),
-      laufzeitMonate: Math.max(1, Math.round(num(f.laufzeitMonate))),
-      kreditStart: /^\d{4}-\d{2}-\d{2}$/.test(f.kreditStart.trim()) ? f.kreditStart.trim() : new Date().toISOString().slice(0, 10),
-      kaltmiete: num(f.kaltmiete),
-      warmmiete: num(f.warmmiete),
-      nebenkosten: num(f.nebenkosten),
-      vermietetSeit: /^\d{4}-\d{2}-\d{2}$/.test(f.vermietetSeit.trim()) ? f.vermietetSeit.trim() : undefined,
+      kreditplaene: ex?.kreditplaene ?? [],
+      mietperioden: ex?.mietperioden ?? [],
+      sonderbuchungen: ex?.sonderbuchungen ?? [],
+      kaufpreis: num(f.kaufpreis),
+      kaufnebenkosten: num(f.kaufnebenkosten),
+      eigenkapital: num(f.eigenkapital),
+      kaufDatum: kaufDatumISO || undefined,
+      // Laufende Kosten bleiben unverändert (eigener Screen)
+      hausgeldMonatlich: ex?.hausgeldMonatlich,
+      grundbesitzabgabenJaehrlich: ex?.grundbesitzabgabenJaehrlich,
+      lebensversicherungMonatlich: ex?.lebensversicherungMonatlich,
+      // alte Felder neutralisieren
+      kaltmiete: 0,
+      warmmiete: 0,
+      nebenkosten: 0,
+      vermietetSeit: undefined,
+      kreditsumme: ex?.kreditsumme,
+      sollzinsProzent: ex?.sollzinsProzent,
+      laufzeitMonate: ex?.laufzeitMonate,
+      kreditStart: ex?.kreditStart,
+      note: ex?.note,
     };
     upsertProperty(p);
     navigation.goBack();
@@ -54,45 +67,32 @@ export default function PropertyEditScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <SectionLabel theme={theme}>Objekt</SectionLabel>
         <Card theme={theme}>
-          <FieldRow theme={theme} label="Name" last>
+          <FieldRow theme={theme} label="Name">
             <TextField theme={theme} value={f.name} onChangeText={set('name')} placeholder="z. B. Wohnung Berlin" />
           </FieldRow>
+          <FieldRow theme={theme} label="Kaufdatum" last>
+            <DateField theme={theme} value={f.kaufDatum} onChangeText={set('kaufDatum')} />
+          </FieldRow>
         </Card>
 
-        <SectionLabel theme={theme}>Kredit (Rest wird berechnet)</SectionLabel>
+        <SectionLabel theme={theme}>Kauf & Finanzierung</SectionLabel>
         <Card theme={theme}>
-          <FieldRow theme={theme} label="Kreditsumme (€)">
-            <TextField theme={theme} value={f.kreditsumme} onChangeText={set('kreditsumme')} placeholder="0" keyboardType="decimal-pad" />
+          <FieldRow theme={theme} label="Kaufpreis (€)">
+            <TextField theme={theme} value={f.kaufpreis} onChangeText={set('kaufpreis')} placeholder="z. B. 180000" keyboardType="decimal-pad" />
           </FieldRow>
-          <FieldRow theme={theme} label="Sollzins (% p. a.)">
-            <TextField theme={theme} value={f.sollzinsProzent} onChangeText={set('sollzinsProzent')} placeholder="z. B. 3,5" keyboardType="decimal-pad" />
+          <FieldRow theme={theme} label="Kaufnebenkosten (€)">
+            <TextField theme={theme} value={f.kaufnebenkosten} onChangeText={set('kaufnebenkosten')} placeholder="Notar/GrESt/Makler" keyboardType="decimal-pad" />
           </FieldRow>
-          <FieldRow theme={theme} label="Laufzeit (Monate)">
-            <TextField theme={theme} value={f.laufzeitMonate} onChangeText={set('laufzeitMonate')} placeholder="z. B. 360" keyboardType="number-pad" />
-          </FieldRow>
-          <FieldRow theme={theme} label="Kreditstart (JJJJ-MM-TT)" last>
-            <TextField theme={theme} value={f.kreditStart} onChangeText={set('kreditStart')} placeholder="2020-01-01" />
+          <FieldRow theme={theme} label="Eigenkapital (€)" last>
+            <TextField theme={theme} value={f.eigenkapital} onChangeText={set('eigenkapital')} placeholder="0" keyboardType="decimal-pad" />
           </FieldRow>
         </Card>
 
-        <SectionLabel theme={theme}>Vermietung</SectionLabel>
-        <Card theme={theme}>
-          <FieldRow theme={theme} label="Kaltmiete (€)">
-            <TextField theme={theme} value={f.kaltmiete} onChangeText={set('kaltmiete')} placeholder="0" keyboardType="decimal-pad" />
-          </FieldRow>
-          <FieldRow theme={theme} label="Warmmiete (€)">
-            <TextField theme={theme} value={f.warmmiete} onChangeText={set('warmmiete')} placeholder="0" keyboardType="decimal-pad" />
-          </FieldRow>
-          <FieldRow theme={theme} label="Nebenkosten (€)">
-            <TextField theme={theme} value={f.nebenkosten} onChangeText={set('nebenkosten')} placeholder="0" keyboardType="decimal-pad" />
-          </FieldRow>
-          <FieldRow theme={theme} label="Vermietet seit (JJJJ-MM-TT)" last>
-            <TextField theme={theme} value={f.vermietetSeit} onChangeText={set('vermietetSeit')} placeholder="optional" />
-          </FieldRow>
-        </Card>
-
-        <View style={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: insets.bottom + 8 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 24, paddingBottom: insets.bottom + 8, gap: 12 }}>
           <PrimaryButton theme={theme} label="Speichern" icon="check" onPress={save} />
+          <Text style={{ fontSize: 12, color: theme.textMuted, textAlign: 'center', paddingHorizontal: 8 }}>
+            Kreditverträge, Mietperioden, laufende Kosten und Sonderbuchungen verwaltest du in der Detailansicht.
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

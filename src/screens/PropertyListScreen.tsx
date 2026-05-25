@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../data/AppContext';
-import { amortize, formatEuro } from '../data/calc';
+import { propertyTotals, formatEuro } from '../data/calc';
 import CFIcon from '../components/CFIcon';
 import { TopBar, EmptyState } from '../components/UI';
 
@@ -41,7 +41,8 @@ export default function PropertyListScreen() {
         ) : (
           <View style={{ paddingHorizontal: 16, gap: 12 }}>
             {props.map(p => {
-              const a = amortize(p);
+              const t = propertyTotals(p);
+              const nPlans = (p.kreditplaene ?? []).length;
               return (
                 <TouchableOpacity
                   key={p.id}
@@ -55,15 +56,15 @@ export default function PropertyListScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text }}>{p.name}</Text>
                       <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>
-                        Rate {formatEuro(a.monatsrate, { decimals: 0 })} · Rest {formatEuro(a.restschuld, { decimals: 0 })}
+                        {nPlans} {nPlans === 1 ? 'Vertrag' : 'Verträge'} · Rate {formatEuro(t.monatsrateGesamt, { decimals: 0 })}
                       </Text>
                     </View>
                     <CFIcon name="chevron" size={16} color={theme.textDim} />
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 }}>
-                    <Stat theme={theme} l="Getilgt" v={formatEuro(a.bereitsGetilgt, { decimals: 0 })} />
-                    <Stat theme={theme} l="Restlaufzeit" v={`${Math.round(a.restlaufzeitMonate / 12)} J`} />
-                    <Stat theme={theme} l="Cashflow" v={formatEuro(a.mietCashflow, { decimals: 0, sign: true })} c={a.mietCashflow >= 0 ? theme.income : theme.expense} />
+                    <Stat theme={theme} l="Getilgt" v={formatEuro(t.gezahlteTilgungGesamt, { decimals: 0 })} />
+                    <Stat theme={theme} l="Restschuld" v={formatEuro(t.restschuldGesamt, { decimals: 0 })} c={theme.expense} />
+                    <Stat theme={theme} l="Cashflow" v={formatEuro(t.mietCashflow, { decimals: 0, sign: true })} c={t.mietCashflow >= 0 ? theme.income : theme.expense} />
                   </View>
                 </TouchableOpacity>
               );

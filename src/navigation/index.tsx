@@ -16,6 +16,17 @@ import YearScreen from '../screens/YearScreen';
 import PropertyListScreen from '../screens/PropertyListScreen';
 import PropertyEditScreen from '../screens/PropertyEditScreen';
 import PropertyDetailScreen from '../screens/PropertyDetailScreen';
+import KreditPlanEditScreen from '../screens/KreditPlanEditScreen';
+import MietperiodenScreen from '../screens/MietperiodenScreen';
+import SonderbuchungScreen from '../screens/SonderbuchungScreen';
+import LaufendeKostenScreen from '../screens/LaufendeKostenScreen';
+import BargeldListScreen from '../screens/BargeldListScreen';
+import KontenScreen from '../screens/KontenScreen';
+import KontoEditScreen from '../screens/KontoEditScreen';
+import SteuerHomeScreen from '../screens/SteuerHomeScreen';
+import SteuerListScreen from '../screens/SteuerListScreen';
+import SteuerEditScreen from '../screens/SteuerEditScreen';
+import SteuerExportScreen from '../screens/SteuerExportScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ExportScreen from '../screens/ExportScreen';
 import PropertyExportScreen from '../screens/PropertyExportScreen';
@@ -110,6 +121,17 @@ export default function AppNavigator() {
         <RootStack.Screen name="ItemEdit" component={ItemEditScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
         <RootStack.Screen name="Cash" component={CashScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
         <RootStack.Screen name="PropertyEdit" component={PropertyEditScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
+        <RootStack.Screen name="KreditPlanEdit" component={KreditPlanEditScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
+        <RootStack.Screen name="Mietperioden" component={MietperiodenScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
+        <RootStack.Screen name="Sonderbuchung" component={SonderbuchungScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
+        <RootStack.Screen name="LaufendeKosten" component={LaufendeKostenScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
+        <RootStack.Screen name="BargeldList" component={BargeldListScreen} />
+        <RootStack.Screen name="Konten" component={KontenScreen} />
+        <RootStack.Screen name="KontoEdit" component={KontoEditScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
+        <RootStack.Screen name="SteuerHome" component={SteuerHomeScreen} />
+        <RootStack.Screen name="SteuerList" component={SteuerListScreen} />
+        <RootStack.Screen name="SteuerEdit" component={SteuerEditScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
+        <RootStack.Screen name="SteuerExport" component={SteuerExportScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
         <RootStack.Screen name="Export" component={ExportScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
         <RootStack.Screen name="PropertyExport" component={PropertyExportScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
       </RootStack.Navigator>

@@ -83,6 +83,36 @@ export function TextField({
   );
 }
 
+// Datumsfeld TT.MM.JJJJ — autoformatiert beim Tippen.
+// Akzeptiert nur Ziffern, fügt Punkte automatisch ein.
+export function DateField({
+  theme, value, onChangeText, placeholder, align = 'right',
+}: {
+  theme: Theme; value: string; onChangeText: (t: string) => void;
+  placeholder?: string; align?: 'left' | 'right';
+}) {
+  const handleChange = (t: string) => {
+    // Nur Ziffern + Punkte erlauben, automatisch formatieren
+    const digits = t.replace(/\D/g, '').slice(0, 8);
+    let formatted = '';
+    if (digits.length <= 2) formatted = digits;
+    else if (digits.length <= 4) formatted = digits.slice(0, 2) + '.' + digits.slice(2);
+    else formatted = digits.slice(0, 2) + '.' + digits.slice(2, 4) + '.' + digits.slice(4);
+    onChangeText(formatted);
+  };
+  return (
+    <TextInput
+      value={value}
+      onChangeText={handleChange}
+      placeholder={placeholder ?? 'TT.MM.JJJJ'}
+      placeholderTextColor={theme.textDim}
+      keyboardType="number-pad"
+      maxLength={10}
+      style={{ fontSize: 15, color: theme.text, textAlign: align, minWidth: 100, padding: 0 }}
+    />
+  );
+}
+
 export function PrimaryButton({
   theme, label, icon, onPress, disabled,
 }: { theme: Theme; label: string; icon?: string; onPress: () => void; disabled?: boolean }) {

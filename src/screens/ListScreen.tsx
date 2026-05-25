@@ -10,7 +10,7 @@ import CFIcon from '../components/CFIcon';
 import { TopBar, EmptyState, MonthSwitcher } from '../components/UI';
 
 export default function ListScreen() {
-  const { theme, snapshot, monthKey, shiftMonth, deleteItem, deleteContract, deleteInvest, deleteCash } = useApp();
+  const { theme, snapshot, monthKey, shiftMonth, deleteItem, deleteContract, deleteCash } = useApp();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -19,10 +19,10 @@ export default function ListScreen() {
 
   const items: any[] = (snapshot as any)[section] ?? [];
 
-  // Bargeld zusätzlich hier anzeigen (Überblick): Ausgaben unter „Variable
-  // Kosten", Einnahmen unter „Variable Einnahmen". Bearbeitung im Bargeld-Screen.
+  // Bargeld zusätzlich hier anzeigen (Überblick): Ausgaben unter „Variable Kosten",
+  // Einnahmen unter „Einnahmen". Bearbeitung im Bargeld-Screen.
   const cashHere = section === 'variableExpenses' ? 'out'
-    : section === 'variableIncome' ? 'in' : null;
+    : section === 'income' ? 'in' : null;
   const cashEntries = cashHere ? snapshot.cash.filter(c => c.direction === cashHere) : [];
   const cashTotal = cashEntries.reduce((a, c) => a + (c.amount || 0), 0);
 
@@ -32,7 +32,6 @@ export default function ListScreen() {
       {
         text: 'Löschen', style: 'destructive', onPress: () => {
           if (meta.isContract) deleteContract(id);
-          else if (section === 'invest') deleteInvest(id);
           else deleteItem(section as any, id);
         },
       },

@@ -2,12 +2,10 @@
 import { CategoryDef, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from './model';
 
 export type SectionKey =
-  | 'income'            // fixe/wiederkehrende Einnahmen
+  | 'income'            // Einnahmen (mit Wiederkehrend-Toggle)
   | 'contracts'         // Fixkosten/Verträge
   | 'variableExpenses'  // variable Kosten
-  | 'variableIncome'    // variable Einnahmen
-  | 'invest'            // wiederkehrendes Invest
-  | 'spontanInvest';    // spontane Investitionen
+  | 'invest';           // Invest/Sparen (mit Wiederkehrend-Toggle)
 
 export interface SectionMeta {
   key: SectionKey;
@@ -16,15 +14,15 @@ export interface SectionMeta {
   icon: string;
   color: string;
   direction: 'income' | 'expense' | 'neutral';
-  categories: CategoryDef[] | null;   // null → keine Kategorie (nur Name + Betrag)
+  categories: CategoryDef[] | null;   // null → keine Kategorie
   isContract?: boolean;
   isInvest?: boolean;
-  carriedForward: boolean;            // true = wandert automatisch in neue Monate
+  carriedForward: boolean;            // true bei Wiederkehrend-Toggle
 }
 
 export const SECTIONS: Record<SectionKey, SectionMeta> = {
   income: {
-    key: 'income', title: 'Einnahmen', subtitle: 'Gehalt, Kindergeld …',
+    key: 'income', title: 'Einnahmen', subtitle: 'Gehalt, Boni, Erstattungen …',
     icon: 'wallet', color: '#B8F12C', direction: 'income',
     categories: INCOME_CATEGORIES, carriedForward: true,
   },
@@ -38,23 +36,13 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
     icon: 'bag', color: '#FB923C', direction: 'expense',
     categories: EXPENSE_CATEGORIES, carriedForward: false,
   },
-  variableIncome: {
-    key: 'variableIncome', title: 'Variable Einnahmen', subtitle: 'Einmalige Einnahmen',
-    icon: 'gift', color: '#34D399', direction: 'income',
-    categories: INCOME_CATEGORIES, carriedForward: false,
-  },
   invest: {
-    key: 'invest', title: 'Invest (wiederkehrend)', subtitle: 'Sparplan, ETF …',
+    key: 'invest', title: 'Invest (Sparen)', subtitle: 'Sparplan, ETF, spontane Anlagen …',
     icon: 'trend', color: '#A78BFA', direction: 'neutral',
     categories: null, isInvest: true, carriedForward: true,
-  },
-  spontanInvest: {
-    key: 'spontanInvest', title: 'Spontane Investitionen', subtitle: 'Einmalige Investments',
-    icon: 'star', color: '#A78BFA', direction: 'neutral',
-    categories: null, isInvest: true, carriedForward: false,
   },
 };
 
 export const MANAGE_ORDER: SectionKey[] = [
-  'income', 'contracts', 'variableExpenses', 'variableIncome', 'invest', 'spontanInvest',
+  'income', 'contracts', 'variableExpenses', 'invest',
 ];

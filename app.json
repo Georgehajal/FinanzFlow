@@ -13,7 +13,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.finanzflow.app"
+      "bundleIdentifier": "com.finanzflow.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,6 +29,33 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Finanzflow nutzt Face ID, um deine Finanzdaten zu schuetzen."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Finanzflow benötigt Zugriff auf deine Fotos, um Belege zu Sonderbuchungen anzuhängen.",
+          "cameraPermission": "Finanzflow benötigt Zugriff auf die Kamera, um Belege direkt zu fotografieren."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Finanzflow speichert deine Belege im Galerie-Album Finanzflow-Belege fuer Backup ueber iCloud/Google Photos.",
+          "savePhotosPermission": "Finanzflow speichert deine Belege im Galerie-Album Finanzflow-Belege."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "324f01de-a6ba-4148-aef8-08129e6edd49"
+      }
     }
   }
 }

@@ -3,8 +3,8 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar, Dimensions } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../data/AppContext';
-import { formatEuro, euroParts, expenseByCategory, monthsSeries } from '../data/calc';
-import { monthLabel, categoryDef } from '../data/model';
+import { formatEuro, euroParts, expenseByCategory, monthsSeries, vermoegenFor } from '../data/calc';
+import { monthLabel, categoryDef, addMonthsKey } from '../data/model';
 import CFIcon from '../components/CFIcon';
 import { DonutChart, TrendLineChart, Legend } from '../components/Charts';
 
@@ -178,31 +178,73 @@ export default function DashboardScreen() {
           />
         </View>
 
+        {/* Vermögen-Tile */}
+        <VermoegenTile />
+
         {/* Quick actions */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', gap: 10 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity
             onPress={() => navigation.navigate('Cash')}
-            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 16, alignItems: 'center', gap: 6 }}
+            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 14, alignItems: 'center', gap: 6 }}
           >
-            <CFIcon name="coin" size={22} color={theme.mint} />
-            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text }}>Bargeld</Text>
+            <CFIcon name="coin" size={20} color={theme.mint} />
+            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>Bargeld</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('Year')}
-            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 16, alignItems: 'center', gap: 6 }}
+            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 14, alignItems: 'center', gap: 6 }}
           >
-            <CFIcon name="chart" size={22} color={theme.blue} />
-            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text }}>Jahr</Text>
+            <CFIcon name="chart" size={20} color={theme.blue} />
+            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>Jahr</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('PropertyList')}
-            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 16, alignItems: 'center', gap: 6 }}
+            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 14, alignItems: 'center', gap: 6 }}
           >
-            <CFIcon name="home" size={22} color={theme.orange} />
-            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text }}>Immobilien</Text>
+            <CFIcon name="home" size={20} color={theme.orange} />
+            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>Immobilien</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SteuerHome')}
+            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 14, alignItems: 'center', gap: 6 }}
+          >
+            <CFIcon name="note" size={20} color={theme.accent} />
+            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>Steuer</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function VermoegenTile() {
+  const { theme, data, monthKey } = useApp();
+  const navigation = useNavigation<any>();
+  const verm = vermoegenFor(data, monthKey);
+  const konten = (data.konten ?? []).filter(k => !k.archiviert);
+  if (konten.length === 0) return null;
+  const prevVerm = vermoegenFor(data, addMonthsKey(monthKey, -1)).gesamt;
+  const delta = verm.gesamt - prevVerm;
+  return (
+    <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+      <TouchableOpacity
+        onPress={() => navigation.navigate('Konten')}
+        style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
+      >
+        <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: theme.accent + '22', alignItems: 'center', justifyContent: 'center' }}>
+          <CFIcon name="wallet" size={18} color={theme.accent} stroke={2.4} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 11.5, color: theme.textMuted, fontWeight: '600', letterSpacing: 0.4 }}>GESAMTVERMÖGEN</Text>
+          <Text style={{ fontSize: 22, fontWeight: '700', color: theme.text, marginTop: 2 }}>{formatEuro(verm.gesamt, { decimals: 0 })}</Text>
+          {prevVerm > 0 && (
+            <Text style={{ fontSize: 11.5, color: delta >= 0 ? theme.income : theme.expense, marginTop: 2, fontWeight: '700' }}>
+              {delta >= 0 ? '↑' : '↓'} {formatEuro(Math.abs(delta), { decimals: 0 })} vs. Vormonat
+            </Text>
+          )}
+        </View>
+        <CFIcon name="chevron" size={14} color={theme.textDim} />
+      </TouchableOpacity>
     </View>
   );
 }

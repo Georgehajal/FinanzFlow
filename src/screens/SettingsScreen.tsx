@@ -1,16 +1,67 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, Switch, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, Switch, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../data/AppContext';
+import { exportBackup, importBackup } from '../data/backupUtils';
+import { isBiometryAvailable, supportedTypeLabel } from '../data/authUtils';
 import CFIcon from '../components/CFIcon';
 
 const ACCENT_SWATCHES = ['#B8F12C', '#5AC8FA', '#FF9F0A', '#BF5AF2', '#FF453A', '#34C759'];
 
 export default function SettingsScreen() {
-  const { theme, settings, updateSettings, data } = useApp();
+  const { theme, settings, updateSettings, data, replaceAllData } = useApp();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const [biometryLabel, setBiometryLabel] = useState<string>('Face ID / PIN');
+  const [biometryAvailable, setBiometryAvailable] = useState<boolean>(false);
+
+  useEffect(() => {
+    (async () => {
+      const ok = await isBiometryAvailable();
+      setBiometryAvailable(ok);
+      if (ok) setBiometryLabel(await supportedTypeLabel());
+    })();
+  }, []);
+
+  const handleExport = async () => {
+    try {
+      await exportBackup(data);
+    } catch (e: any) {
+      Alert.alert('Export fehlgeschlagen', e?.message ?? 'Unbekannter Fehler');
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      const imported = await importBackup();
+      if (!imported) return;
+      Alert.alert(
+        'Backup importieren?',
+        'Alle aktuellen Daten werden überschrieben. Fotos der Belege müssen separat gesichert sein (sie sind nicht im Backup enthalten).',
+        [
+          { text: 'Abbrechen', style: 'cancel' },
+          { text: 'Importieren', style: 'destructive', onPress: async () => {
+            await replaceAllData(imported);
+            Alert.alert('Erledigt', 'Daten wurden importiert.');
+          }},
+        ],
+      );
+    } catch (e: any) {
+      Alert.alert('Import fehlgeschlagen', e?.message ?? 'Unbekannter Fehler');
+    }
+  };
+
+  const toggleAppLock = (v: boolean) => {
+    if (v && !biometryAvailable) {
+      Alert.alert(
+        'Nicht verfügbar',
+        'Auf diesem Gerät ist keine Biometrie (Face ID / Touch ID) oder Geräte-PIN eingerichtet. Bitte erst in den Geräte-Einstellungen aktivieren.',
+      );
+      return;
+    }
+    updateSettings({ appLockEnabled: v });
+  };
 
   const initials = (settings.userName || 'FF').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
@@ -77,9 +128,35 @@ export default function SettingsScreen() {
           </View>
         </Section>
 
+        <Section label="Sicherheit & Backup" theme={theme}>
+          <View style={{ paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 0.5, borderBottomColor: theme.border }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: theme.accent + '22', alignItems: 'center', justifyContent: 'center' }}>
+                <CFIcon name="lock" size={16} color={theme.accent} stroke={2.2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, color: theme.text }}>App schützen ({biometryLabel})</Text>
+                <Text style={{ fontSize: 11.5, color: theme.textMuted, marginTop: 2 }}>
+                  {biometryAvailable ? 'Bei jedem App-Start entsperren' : 'Geräte-PIN/Biometrie nicht eingerichtet'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={!!settings.appLockEnabled}
+              onValueChange={toggleAppLock}
+              trackColor={{ false: 'rgba(120,120,128,0.32)', true: theme.accent }}
+              thumbColor="#fff"
+            />
+          </View>
+          <Row theme={theme} icon="share" bg={theme.blue} label="Backup exportieren (JSON)" onPress={handleExport} />
+          <Row theme={theme} icon="note" bg={theme.purple} label="Backup importieren (JSON)" onPress={handleImport} last />
+        </Section>
+
         <Section label="Berichte" theme={theme}>
           <Row theme={theme} icon="pdf" bg={theme.expense} label="PDF-Export (gesamt)" onPress={() => navigation.navigate('Export')} />
-          <Row theme={theme} icon="home" bg={theme.orange} label="Immobilien-PDF-Export" onPress={() => navigation.navigate('PropertyExport')} last />
+          <Row theme={theme} icon="home" bg={theme.orange} label="Immobilien-PDF-Export" onPress={() => navigation.navigate('PropertyExport')} />
+          <Row theme={theme} icon="note" bg={theme.accent} label="Steuer Nichtselbstständig (PDF)" onPress={() => navigation.navigate('SteuerExport', { bereich: 'nicht_selbst', jahr: new Date().getFullYear() })} />
+          <Row theme={theme} icon="wallet" bg={theme.purple} label="Steuer Selbstständig (PDF)" onPress={() => navigation.navigate('SteuerExport', { bereich: 'selbst', jahr: new Date().getFullYear() })} last />
         </Section>
 
         <Section label="Daten" theme={theme}>

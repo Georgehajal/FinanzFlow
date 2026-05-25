@@ -22,8 +22,8 @@ export default function ManageScreen() {
     const arr = (snapshot as any)[key] as { amount: number }[];
     let count = arr.length;
     let total = arr.reduce((a, x) => a + (x.amount || 0), 0);
-    // Bargeld zählt mit (Ausgaben → variable Kosten, Einnahmen → variable Einnahmen)
-    if (key === 'variableExpenses' || key === 'variableIncome') {
+    // Bargeld zählt mit (Ausgaben → variable Kosten, Einnahmen → Einnahmen)
+    if (key === 'variableExpenses' || key === 'income') {
       const wantOut = key === 'variableExpenses';
       const cash = snapshot.cash.filter(c => (c.direction === 'out') === wantOut);
       count += cash.length;
@@ -69,8 +69,38 @@ export default function ManageScreen() {
           })}
 
           <TouchableOpacity
-            onPress={() => navigation.navigate('PropertyList')}
+            onPress={() => navigation.navigate('Konten')}
             style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 6 }}
+          >
+            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.accent + '22', alignItems: 'center', justifyContent: 'center' }}>
+              <CFIcon name="wallet" size={20} color={theme.accent} stroke={2.2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15.5, fontWeight: '700', color: theme.text }}>Konten & Vermögen</Text>
+              <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>Girokonto, Tagesgeld, Depot · monatlicher Stand</Text>
+            </View>
+            <CFIcon name="chevron" size={14} color={theme.textDim} stroke={2.2} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('BargeldList')}
+            style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
+          >
+            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.mint + '22', alignItems: 'center', justifyContent: 'center' }}>
+              <CFIcon name="coin" size={20} color={theme.mint} stroke={2.2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15.5, fontWeight: '700', color: theme.text }}>Bargeld</Text>
+              <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>
+                {snapshot.cash.length} Einträge · {formatEuro(snapshot.cash.reduce((a, c) => a + c.amount, 0), { decimals: 0 })}
+              </Text>
+            </View>
+            <CFIcon name="chevron" size={14} color={theme.textDim} stroke={2.2} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('PropertyList')}
+            style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
           >
             <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.orange + '22', alignItems: 'center', justifyContent: 'center' }}>
               <CFIcon name="home" size={20} color={theme.orange} stroke={2.2} />
@@ -78,6 +108,20 @@ export default function ManageScreen() {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15.5, fontWeight: '700', color: theme.text }}>Immobilien</Text>
               <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>Separater Bereich · eigener PDF-Export</Text>
+            </View>
+            <CFIcon name="chevron" size={14} color={theme.textDim} stroke={2.2} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SteuerHome')}
+            style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
+          >
+            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.accent + '22', alignItems: 'center', justifyContent: 'center' }}>
+              <CFIcon name="note" size={20} color={theme.accent} stroke={2.2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15.5, fontWeight: '700', color: theme.text }}>Steuer</Text>
+              <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>Werbungskosten & Betriebsausgaben · separate PDFs für Steuerberater</Text>
             </View>
             <CFIcon name="chevron" size={14} color={theme.textDim} stroke={2.2} />
           </TouchableOpacity>

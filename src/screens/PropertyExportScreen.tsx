@@ -5,7 +5,9 @@ import { useNavigation } from '@react-navigation/native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useApp } from '../data/AppContext';
-import { amortize, formatEuro } from '../data/calc';
+import { propertyTotals, planStatus, PLAN_TYP_LABEL, formatEuro, finanzierungsStruktur, currentMietperiode, jahresCashflowSerie, SB_KATEGORIE_LABEL, steuerSaldoProJahr } from '../data/calc';
+import { isoToDE } from '../data/dateUtils';
+import { readAsBase64 } from '../data/fotoUtils';
 import CFIcon from '../components/CFIcon';
 import { TopBar } from '../components/UI';
 
@@ -19,34 +21,124 @@ export default function PropertyExportScreen() {
   const now = new Date();
   const props = data.properties;
 
+  // Cache: fotoUri → base64 data URI (vor buildHtml gefüllt)
+  const fotoCache: Record<string, string> = {};
+
   const buildHtml = () => {
     const blocks = props.map(p => {
-      const a = amortize(p);
+      const t = propertyTotals(p);
+      const fin = finanzierungsStruktur(p);
+      const plans = p.kreditplaene ?? [];
+      const planRows = plans.map(pl => {
+        const st = planStatus(pl);
+        return `<tr><td><b>${esc(pl.name)}</b><br><span style="font-size:11px;color:#888">${PLAN_TYP_LABEL[pl.typ]}${st.phaseLabel ? ` · ${st.phaseLabel}` : ''}</span></td>
+          <td style="text-align:right">${formatEuro(st.monatsrate)}</td>
+          <td style="text-align:right">${formatEuro(st.restschuld)}</td>
+          <td style="text-align:right">${formatEuro(st.gezahlteTilgung)}</td>
+          <td style="text-align:right">${st.restlaufzeitMonate > 0 ? Math.round(st.restlaufzeitMonate / 12) + ' J' : '—'}</td></tr>`;
+      }).join('');
+      const finBlock = (fin.kaufpreis > 0 || fin.kaufnebenkosten > 0 || fin.eigenkapital > 0)
+        ? `<h3>Finanzierungsstruktur</h3><table>
+            <tr><td>Kaufpreis</td><td style="text-align:right">${formatEuro(fin.kaufpreis)}</td></tr>
+            <tr><td>+ Kaufnebenkosten</td><td style="text-align:right">${formatEuro(fin.kaufnebenkosten)}</td></tr>
+            <tr><td>− Eigenkapital</td><td style="text-align:right">${formatEuro(fin.eigenkapital)}</td></tr>
+            <tr><td><b>Finanzierungsbedarf</b></td><td style="text-align:right"><b>${formatEuro(fin.finanzierungsbedarf)}</b></td></tr>
+            <tr><td>Kredite gesamt</td><td style="text-align:right">${formatEuro(fin.kreditsummeGesamt)}</td></tr>
+            <tr><td>${fin.differenz >= 0 ? 'Liquiditätspuffer' : 'Lücke'}</td><td style="text-align:right" class="${fin.differenz >= 0 ? 'income' : 'expense'}">${formatEuro(Math.abs(fin.differenz))}</td></tr>
+          </table>` : '';
       return `<div class="card"><h2>${esc(p.name)}</h2>
         <div class="grid">
-          <div class="tile"><div class="l">Monatsrate</div><div class="v">${formatEuro(a.monatsrate)}</div></div>
-          <div class="tile"><div class="l">Restschuld</div><div class="v expense">${formatEuro(a.restschuld)}</div></div>
-          <div class="tile"><div class="l">Getilgt</div><div class="v income">${formatEuro(a.bereitsGetilgt)}</div></div>
-          <div class="tile"><div class="l">Restlaufzeit</div><div class="v">${a.restlaufzeitMonate} Mon.</div></div>
+          <div class="tile"><div class="l">Monatsrate gesamt</div><div class="v">${formatEuro(t.monatsrateGesamt)}</div></div>
+          <div class="tile"><div class="l">Restschuld gesamt</div><div class="v expense">${formatEuro(t.restschuldGesamt)}</div></div>
+          <div class="tile"><div class="l">Getilgt</div><div class="v income">${formatEuro(t.gezahlteTilgungGesamt)}</div></div>
+          <div class="tile"><div class="l">Verträge</div><div class="v">${plans.length}</div></div>
         </div>
+        ${plans.length > 0 ? `<h3>Kreditverträge</h3><table>
+          <tr><th style="text-align:left">Vertrag</th><th style="text-align:right">Rate</th><th style="text-align:right">Rest</th><th style="text-align:right">Getilgt</th><th style="text-align:right">Restzeit</th></tr>
+          ${planRows}
+          ${t.sondertilgungenGesamt > 0 ? `<tr><td colspan="3">davon Sondertilgungen</td><td colspan="2" style="text-align:right" class="income">${formatEuro(t.sondertilgungenGesamt)}</td></tr>` : ''}
+        </table>` : '<p style="color:#888">Keine Kreditverträge erfasst</p>'}
+        ${finBlock}
+        <h3>Laufende Kosten / Monat</h3>
         <table>
-          <tr><td>Kreditsumme</td><td style="text-align:right">${formatEuro(p.kreditsumme)}</td></tr>
-          <tr><td>Sollzins</td><td style="text-align:right">${p.sollzinsProzent} % p. a.</td></tr>
-          <tr><td>Gezahlte Zinsen</td><td style="text-align:right">${formatEuro(a.gezahlteZinsen)}</td></tr>
-          <tr><td>Zins-/Tilgungsanteil aktuell</td><td style="text-align:right">${formatEuro(a.aktuellZinsanteil)} / ${formatEuro(a.aktuellTilgungsanteil)}</td></tr>
-          <tr><td>Kaltmiete / Warmmiete</td><td style="text-align:right">${formatEuro(p.kaltmiete)} / ${formatEuro(p.warmmiete)}</td></tr>
-          <tr><td>Nebenkosten</td><td style="text-align:right">${formatEuro(p.nebenkosten)}</td></tr>
-          <tr><td>Brutto-Mietrendite</td><td style="text-align:right">${(a.bruttoRendite * 100).toFixed(2)} %</td></tr>
-          <tr><td>Cashflow (Warm − NK − Rate)</td><td style="text-align:right">${formatEuro(a.mietCashflow, { sign: true })}</td></tr>
-          <tr><td>Vermietet seit</td><td style="text-align:right">${esc(p.vermietetSeit ?? '—')}</td></tr>
-        </table></div>`;
+          <tr><td>Hausgeld</td><td style="text-align:right">${formatEuro(p.hausgeldMonatlich || 0)}</td></tr>
+          <tr><td>Lebensversicherung</td><td style="text-align:right">${formatEuro(p.lebensversicherungMonatlich || 0)}</td></tr>
+          <tr><td>Grundbesitzabgaben (${formatEuro(p.grundbesitzabgabenJaehrlich || 0)} / Jahr)</td><td style="text-align:right">${formatEuro((p.grundbesitzabgabenJaehrlich || 0) / 12)}</td></tr>
+          <tr><td>Kreditrate gesamt</td><td style="text-align:right">${formatEuro(t.monatsrateGesamt)}</td></tr>
+        </table>
+        <h3>Aktuelle Mietperiode</h3>
+        ${(() => {
+          const per = currentMietperiode(p);
+          if (!per) return '<p style="color:#888">Keine Mietperiode definiert</p>';
+          const leer = (per.kaltmiete || 0) === 0 && (per.nebenkostenumlage || 0) === 0;
+          if (leer) return `<p><b>🏚 Leerstand</b> (ab ${esc(isoToDE(per.vonDatum))}) · keine Mieteinnahmen</p>`;
+          return `<table>
+            <tr><td>ab</td><td style="text-align:right">${esc(isoToDE(per.vonDatum))}</td></tr>
+            <tr><td>Kaltmiete</td><td style="text-align:right">${formatEuro(per.kaltmiete)}</td></tr>
+            <tr><td>Nebenkostenumlage</td><td style="text-align:right">${formatEuro(per.nebenkostenumlage)}</td></tr>
+            <tr><td>Brutto-Mietrendite</td><td style="text-align:right">${(t.bruttoRendite * 100).toFixed(2)} %</td></tr>
+            <tr><td><b>Cashflow / Monat</b></td><td style="text-align:right" class="${t.mietCashflow >= 0 ? 'income' : 'expense'}"><b>${formatEuro(t.mietCashflow, { sign: true })}</b></td></tr>
+          </table>`;
+        })()}
+        ${(() => {
+          const sb = (p.sonderbuchungen ?? []);
+          if (sb.length === 0) return '';
+          const rows = sb.slice().sort((a, b) => a.datum < b.datum ? 1 : -1).map(s =>
+            `<tr><td>${esc(isoToDE(s.datum))}</td><td>${SB_KATEGORIE_LABEL[s.kategorie]}${s.steuerlichAbsetzbar ? ' 💰' : ''}${s.notiz ? ` <span style="color:#888">· ${esc(s.notiz)}</span>` : ''}</td><td style="text-align:right" class="${s.typ === 'einnahme' ? 'income' : 'expense'}">${s.typ === 'einnahme' ? '+' : '−'}${formatEuro(s.betrag)}</td></tr>`
+          ).join('');
+          return `<h3>Sonderbuchungen</h3><table>
+            <tr><th style="text-align:left">Datum</th><th style="text-align:left">Kategorie</th><th style="text-align:right">Betrag</th></tr>
+            ${rows}
+          </table>`;
+        })()}
+        ${(() => {
+          const stSaldo = steuerSaldoProJahr(p);
+          const jahre = Object.keys(stSaldo).sort();
+          if (jahre.length === 0) return '';
+          const absetzbar = (p.sonderbuchungen ?? []).filter(s => s.steuerlichAbsetzbar).sort((a, b) => a.datum < b.datum ? -1 : 1);
+          const rows = absetzbar.map(s =>
+            `<tr><td>${esc(isoToDE(s.datum))}</td><td>${SB_KATEGORIE_LABEL[s.kategorie]}${s.fotoUri ? ' 📎' : ''}${s.notiz ? ` <span style="color:#888">· ${esc(s.notiz)}</span>` : ''}</td><td style="text-align:right" class="${s.typ === 'einnahme' ? 'income' : 'expense'}">${s.typ === 'einnahme' ? '+' : '−'}${formatEuro(s.betrag)}</td></tr>`
+          ).join('');
+          const summen = jahre.map(y => `<tr><td colspan="2"><b>Saldo ${y}</b></td><td style="text-align:right" class="${stSaldo[Number(y)] >= 0 ? 'income' : 'expense'}"><b>${formatEuro(stSaldo[Number(y)], { sign: true })}</b></td></tr>`).join('');
+          return `<h3>💰 Steuerlich absetzbar (Werbungskosten — Anlage V)</h3><table>
+            <tr><th style="text-align:left">Datum</th><th style="text-align:left">Position</th><th style="text-align:right">Betrag</th></tr>
+            ${rows}
+            ${summen}
+          </table>`;
+        })()}
+        ${(() => {
+          const mitFoto = (p.sonderbuchungen ?? []).filter(s => s.fotoUri && fotoCache[s.fotoUri!]).sort((a, b) => a.datum < b.datum ? -1 : 1);
+          if (mitFoto.length === 0) return '';
+          const blocks = mitFoto.map(s => `
+            <div style="page-break-inside:avoid;margin:14px 0;padding:10px;border:1px solid #eee;border-radius:8px">
+              <div style="font-size:12px;color:#444;margin-bottom:6px">
+                <b>${esc(isoToDE(s.datum))}</b> · ${SB_KATEGORIE_LABEL[s.kategorie]}${s.steuerlichAbsetzbar ? ' 💰' : ''} · ${s.typ === 'einnahme' ? '+' : '−'}${formatEuro(s.betrag)}
+                ${s.notiz ? `<br><span style="color:#888">${esc(s.notiz)}</span>` : ''}
+              </div>
+              <img src="${fotoCache[s.fotoUri!]}" style="max-width:100%;max-height:400px;border-radius:6px"/>
+            </div>`).join('');
+          return `<h3>📎 Belege</h3>${blocks}`;
+        })()}
+        ${(() => {
+          const jcs = jahresCashflowSerie(p);
+          if (jcs.length === 0) return '';
+          const rows = jcs.map(j =>
+            `<tr><td>${j.jahr}</td><td>${j.monateVermietet === 0 ? 'Eigennutzung' : j.monateEigennutzung === 0 ? 'Vermietet' : `${j.monateVermietet}M verm. / ${j.monateEigennutzung}M eigen`}</td><td style="text-align:right">${formatEuro(j.einnahmenMiete + j.einnahmenSonder)}</td><td style="text-align:right">${formatEuro(j.ausgabenHausgeld + j.ausgabenKreditrate + j.ausgabenSonder)}</td><td style="text-align:right" class="${j.cashflow >= 0 ? 'income' : 'expense'}"><b>${formatEuro(j.cashflow, { sign: true })}</b></td></tr>`
+          ).join('');
+          return `<h3>Cashflow-Historie</h3><table>
+            <tr><th style="text-align:left">Jahr</th><th style="text-align:left">Status</th><th style="text-align:right">Einnahmen</th><th style="text-align:right">Ausgaben</th><th style="text-align:right">Cashflow</th></tr>
+            ${rows}
+          </table>`;
+        })()}
+        </div>`;
     }).join('');
 
     return `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"/><style>
       body{font-family:-apple-system,Arial,sans-serif;color:#111;padding:32px;max-width:820px;margin:0 auto}
       h1{font-size:26px;margin-bottom:2px}.sub{color:#666;font-size:13px;margin-bottom:20px}
       .card{border:1px solid #eee;border-radius:14px;padding:18px;margin-bottom:18px}
-      h2{font-size:17px;margin:0 0 12px}
+      h2{font-size:17px;margin:0 0 12px}h3{font-size:14px;margin:18px 0 8px;color:#444}
+      th{font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;padding:6px 4px;border-bottom:1px solid #e5e5e5}
       .grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
       .tile{flex:1;min-width:120px;border:1px solid #f0f0f0;border-radius:10px;padding:12px}
       .l{font-size:11px;color:#666}.v{font-size:17px;font-weight:700;margin-top:4px}
@@ -64,6 +156,19 @@ export default function PropertyExportScreen() {
     if (props.length === 0) { Alert.alert('Keine Immobilien', 'Lege zuerst eine Immobilie an.'); return; }
     setGenerating(true);
     try {
+      // Alle Belege als Base64 laden (für PDF-Einbettung)
+      for (const p of props) {
+        for (const sb of (p.sonderbuchungen ?? [])) {
+          if (sb.fotoUri && !fotoCache[sb.fotoUri]) {
+            const b64 = await readAsBase64(sb.fotoUri);
+            if (b64) {
+              const ext = sb.fotoUri.split('.').pop()?.toLowerCase() || 'jpg';
+              const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+              fotoCache[sb.fotoUri] = `data:${mime};base64,${b64}`;
+            }
+          }
+        }
+      }
       const { uri } = await Print.printToFileAsync({ html: buildHtml(), base64: false });
       await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Finanzflow Immobilien' });
     } catch {
@@ -83,12 +188,12 @@ export default function PropertyExportScreen() {
         </View>
         <View style={{ paddingHorizontal: 16, paddingTop: 18, gap: 10 }}>
           {props.map(p => {
-            const a = amortize(p);
+            const t = propertyTotals(p);
             return (
               <View key={p.id} style={{ backgroundColor: theme.surface, borderRadius: 16, padding: 16 }}>
                 <Text style={{ fontSize: 15.5, fontWeight: '700', color: theme.text }}>{p.name}</Text>
                 <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 4 }}>
-                  Rate {formatEuro(a.monatsrate, { decimals: 0 })} · Restschuld {formatEuro(a.restschuld, { decimals: 0 })} · Cashflow {formatEuro(a.mietCashflow, { decimals: 0, sign: true })}
+                  Rate {formatEuro(t.monatsrateGesamt, { decimals: 0 })} · Restschuld {formatEuro(t.restschuldGesamt, { decimals: 0 })} · Cashflow {formatEuro(t.mietCashflow, { decimals: 0, sign: true })}
                 </Text>
               </View>
             );

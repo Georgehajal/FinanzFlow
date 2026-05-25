@@ -43,11 +43,10 @@ export default function ExportScreen() {
         <div class="tile"><div class="l">Invest (Sparen)</div><div class="v">${formatEuro(m.invest)}</div></div>
         <div class="tile"><div class="l">Sparquote</div><div class="v">${Math.round(m.sparquote * 100)} %</div></div>`;
       body =
-        rows('Einnahmen', snapshot.income.map(p => ({ name: p.name, amount: p.amount, extra: categoryDef('income', p.category).label }))) +
+        rows('Einnahmen', snapshot.income.map(p => ({ name: p.name + (p.recurring === false ? ' (einmalig)' : ''), amount: p.amount, extra: categoryDef('income', p.category).label }))) +
         rows('Fixkosten & Verträge', snapshot.contracts.map(v => ({ name: v.name, amount: contractMonthAmount(v, monthKey), extra: v.interval === 'yearly' ? `jährl. (Monat ${v.paymentMonth ?? 1})` : 'monatl.' }))) +
         rows('Variable Kosten', snapshot.variableExpenses.map(p => ({ name: p.name, amount: p.amount, extra: categoryDef('expense', p.category).label }))) +
-        rows('Variable Einnahmen', snapshot.variableIncome.map(p => ({ name: p.name, amount: p.amount }))) +
-        rows('Invest', [...snapshot.invest, ...snapshot.spontanInvest].map(p => ({ name: p.name, amount: p.amount }))) +
+        rows('Invest (Sparen)', snapshot.invest.map(p => ({ name: p.name + (p.recurring === false ? ' (spontan)' : ''), amount: p.amount }))) +
         rows('Bargeld', snapshot.cash.map(c => ({ name: c.name, amount: c.amount, extra: c.direction === 'in' ? 'Einnahme' : 'Ausgabe' })));
     } else {
       const ov = yearOverview(data, yearOf(monthKey));

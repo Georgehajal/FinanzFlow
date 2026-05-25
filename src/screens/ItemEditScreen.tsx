@@ -4,7 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useApp } from '../data/AppContext';
 import { SECTIONS, SectionKey } from '../data/sections';
-import { newId, Vertrag, Posten, InvestPlan } from '../data/model';
+import {
+  newId, Vertrag, Posten,
+  SteuerBereich, STEUER_KATEGORIEN_NICHT_SELBST, STEUER_KATEGORIEN_SELBST, STEUER_BEREICH_KURZ,
+} from '../data/model';
 import { TopBar, SectionLabel, Card, FieldRow, TextField, PrimaryButton, Pill } from '../components/UI';
 
 const num = (s: string) => {
@@ -13,7 +16,7 @@ const num = (s: string) => {
 };
 
 export default function ItemEditScreen() {
-  const { theme, snapshot, upsertItem, upsertContract, upsertInvest } = useApp();
+  const { theme, snapshot, upsertItem, upsertContract } = useApp();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -35,6 +38,10 @@ export default function ItemEditScreen() {
   const [paymentMonth, setPaymentMonth] = useState<string>(String(existing?.paymentMonth ?? 1));
   const [frist, setFrist] = useState<string>(existing?.kuendigungsfristTage != null ? String(existing.kuendigungsfristTage) : '');
   const [ende, setEnde] = useState<string>(existing?.vertragsende ?? '');
+  // Steuer-Markierung
+  const [steuerRelevant, setSteuerRelevant] = useState<boolean>(!!existing?.steuerRelevant);
+  const [steuerBereich, setSteuerBereich] = useState<SteuerBereich>(existing?.steuerBereich ?? 'nicht_selbst');
+  const [steuerKategorie, setSteuerKategorie] = useState<string>(existing?.steuerKategorie ?? 'sonstiges');
 
   const save = () => {
     if (!name.trim()) { Alert.alert('Name fehlt', 'Bitte einen Namen eingeben.'); return; }
@@ -48,17 +55,17 @@ export default function ItemEditScreen() {
         kuendigungsfristTage: frist ? parseInt(frist, 10) : undefined,
         vertragsende: /^\d{4}-\d{2}-\d{2}$/.test(ende.trim()) ? ende.trim() : undefined,
         note: note || undefined,
+        steuerRelevant: steuerRelevant || undefined,
+        steuerBereich: steuerRelevant ? steuerBereich : undefined,
+        steuerKategorie: steuerRelevant ? steuerKategorie : undefined,
       };
       upsertContract(v);
-    } else if (section === 'invest') {
-      const p: InvestPlan = { id, name: name.trim(), amount: num(amount), note: note || undefined };
-      upsertInvest(p);
     } else {
       const p: Posten = {
         id, name: name.trim(),
         category: meta.categories ? category : 'sonstiges',
         amount: num(amount), note: note || undefined,
-        ...(section === 'income' ? { recurring } : {}),
+        ...(section === 'income' || section === 'invest' ? { recurring } : {}),
       };
       upsertItem(section as any, p);
     }
@@ -97,7 +104,7 @@ export default function ItemEditScreen() {
           </>
         )}
 
-        {section === 'income' && (
+        {(section === 'income' || section === 'invest') && (
           <>
             <SectionLabel theme={theme}>Art</SectionLabel>
             <Card theme={theme}>
@@ -107,7 +114,7 @@ export default function ItemEditScreen() {
                   <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 2 }}>
                     {recurring
                       ? 'Wird automatisch in Folgemonate übertragen. Änderungen gelten ab diesem Monat.'
-                      : 'Nur in diesem Monat (einmalige Einnahme).'}
+                      : section === 'income' ? 'Nur in diesem Monat (einmalige Einnahme).' : 'Nur in diesem Monat (spontane Investition).'}
                   </Text>
                 </View>
                 <Switch
@@ -158,6 +165,53 @@ export default function ItemEditScreen() {
             <Text style={{ paddingHorizontal: 24, paddingTop: 8, fontSize: 12, color: theme.textMuted }}>
               Liegt der Kündigungsstichtag in unter 120 Tagen, wird „bald kündbar" angezeigt.
             </Text>
+
+            <SectionLabel theme={theme}>Steuer</SectionLabel>
+            <Card theme={theme}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 }}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ fontSize: 15, color: theme.text }}>Steuerlich relevant</Text>
+                  <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 2 }}>
+                    Erscheint automatisch in der Steuer-Liste (für jeden Zahlmonat).
+                  </Text>
+                </View>
+                <Switch
+                  value={steuerRelevant}
+                  onValueChange={setSteuerRelevant}
+                  trackColor={{ false: 'rgba(120,120,128,0.32)', true: theme.accent }}
+                  thumbColor="#fff"
+                />
+              </View>
+            </Card>
+
+            {steuerRelevant && (
+              <>
+                <SectionLabel theme={theme}>Steuer-Bereich</SectionLabel>
+                <View style={{ marginHorizontal: 16, padding: 4, backgroundColor: theme.surface, borderRadius: 14, flexDirection: 'row', gap: 4 }}>
+                  {(['nicht_selbst', 'selbst'] as SteuerBereich[]).map(b => {
+                    const active = steuerBereich === b;
+                    return (
+                      <TouchableOpacity
+                        key={b}
+                        onPress={() => setSteuerBereich(b)}
+                        style={{ flex: 1, height: 38, borderRadius: 11, backgroundColor: active ? theme.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: active ? theme.accentInk : theme.textMuted }}>
+                          {STEUER_BEREICH_KURZ[b]}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <SectionLabel theme={theme}>Steuer-Kategorie</SectionLabel>
+                <View style={{ paddingHorizontal: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {(steuerBereich === 'nicht_selbst' ? STEUER_KATEGORIEN_NICHT_SELBST : STEUER_KATEGORIEN_SELBST).map(k => (
+                    <Pill key={k.key} theme={theme} active={steuerKategorie === k.key} label={k.label} onPress={() => setSteuerKategorie(k.key)} />
+                  ))}
+                </View>
+              </>
+            )}
           </>
         )}
 
