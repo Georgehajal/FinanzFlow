@@ -3,22 +3,30 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar, Dimensions } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../data/AppContext';
-import { formatEuro, euroParts, expenseByCategory, monthsSeries, vermoegenFor } from '../data/calc';
+import { formatEuro, expenseByCategory, monthsSeries, vermoegenFor } from '../data/calc';
 import { monthLabel, categoryDef, addMonthsKey } from '../data/model';
 import CFIcon from '../components/CFIcon';
+import {
+  HeroCard, ActionTile, IconButton, MoneyAmount, MonthSwitcher,
+  space, type, weight, radius, touch, shadow,
+} from '../components/UI';
 import { DonutChart, TrendLineChart, Legend } from '../components/Charts';
 
-const TREND_W = Dimensions.get('window').width - 32 - 28;
+const TREND_W = Dimensions.get('window').width - space.md * 2 - space.md;
 
 function Delta({ theme, value, invert }: { theme: any; value: number | undefined; invert?: boolean }) {
   if (value === undefined || Math.round(value) === 0) {
-    return <Text style={{ fontSize: 11, color: theme.textDim, marginTop: 2 }}>±0 ggü. Vormonat</Text>;
+    return <Text style={{ fontSize: type.caption, color: theme.textDim, marginTop: 2 }}>±0 vs. Vormonat</Text>;
   }
   const good = invert ? value < 0 : value > 0;
   const col = good ? theme.income : theme.expense;
+  const arrow = value > 0 ? '↑' : '↓';
   return (
-    <Text style={{ fontSize: 11, color: col, marginTop: 2, fontWeight: '600' }}>
-      {value > 0 ? '+' : '−'}{formatEuro(Math.abs(value), { decimals: 0 })} ggü. Vormonat
+    <Text
+      accessibilityLabel={`Veränderung ${value > 0 ? 'Plus' : 'Minus'} ${formatEuro(Math.abs(value), { decimals: 0 })} gegenüber Vormonat`}
+      style={{ fontSize: type.caption, color: col, marginTop: 2, fontWeight: weight.semibold }}
+    >
+      {arrow} {formatEuro(Math.abs(value), { decimals: 0 })} vs. Vormonat
     </Text>
   );
 }
@@ -28,8 +36,8 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
 
-  const { whole, dec } = euroParts(metrics.ueberschuss);
-  const d = compare.delta;
+  const ueberschussDir: 'in' | 'out' | 'neutral' =
+    metrics.ueberschuss > 0 ? 'in' : metrics.ueberschuss < 0 ? 'out' : 'neutral';
 
   const cats = useMemo(() => {
     const map = expenseByCategory(snapshot);
@@ -48,10 +56,10 @@ export default function DashboardScreen() {
   );
 
   const tiles = [
-    { label: 'Einnahmen',      val: metrics.einnahmen,      icon: 'arrowUp',   col: theme.income,  delta: d?.einnahmen },
-    { label: 'Fixkosten',      val: metrics.fixkosten,      icon: 'sync',      col: theme.blue,    delta: d?.fixkosten,      invert: true },
-    { label: 'Variable Kosten', val: metrics.variableKosten, icon: 'bag',       col: theme.orange,  delta: d?.variableKosten, invert: true },
-    { label: 'Invest (Sparen)', val: metrics.invest,         icon: 'trend',     col: theme.purple,  delta: d?.invest },
+    { label: 'Einnahmen',       val: metrics.einnahmen,      icon: 'arrowUp',  col: theme.income,  delta: compare.delta?.einnahmen,      a11y: 'in' as const },
+    { label: 'Fixkosten',       val: metrics.fixkosten,      icon: 'sync',     col: theme.blue,    delta: compare.delta?.fixkosten,      invert: true, a11y: 'out' as const },
+    { label: 'Variable Kosten', val: metrics.variableKosten, icon: 'bag',      col: theme.orange,  delta: compare.delta?.variableKosten, invert: true, a11y: 'out' as const },
+    { label: 'Invest (Sparen)', val: metrics.invest,         icon: 'trend',    col: theme.purple,  delta: compare.delta?.invest,         a11y: 'neutral' as const },
   ];
 
   return (
@@ -60,82 +68,116 @@ export default function DashboardScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
 
         {/* Header */}
-        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: theme.accentInk, fontWeight: '700', fontSize: 13 }}>FF</Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('More')}
-            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' }}
+        <View style={{ paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: space.xxs, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View
+            accessibilityRole="header"
+            accessibilityLabel="Finanzflow"
+            style={{ width: touch.min, height: touch.min, borderRadius: touch.min / 2, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center' }}
           >
-            <CFIcon name="sliders" size={17} color={theme.text} />
-          </TouchableOpacity>
+            <Text style={{ color: theme.accentInk, fontWeight: weight.bold, fontSize: type.small }}>FF</Text>
+          </View>
+          <IconButton
+            theme={theme}
+            icon="sliders"
+            onPress={() => navigation.navigate('More')}
+            accessibilityLabel="Einstellungen öffnen"
+          />
         </View>
 
-        {/* Month switcher */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-          <TouchableOpacity onPress={() => shiftMonth(-1)} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' }}>
-            <CFIcon name="arrowLeft" size={16} color={theme.text} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: theme.text, minWidth: 150, textAlign: 'center' }}>
-            {monthLabel(monthKey)}
-          </Text>
-          <TouchableOpacity onPress={() => shiftMonth(1)} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: theme.surface, alignItems: 'center', justifyContent: 'center' }}>
-            <CFIcon name="chevron" size={16} color={theme.text} />
-          </TouchableOpacity>
-        </View>
+        {/* Month switcher (44pt Targets, im UI-Component) */}
+        <MonthSwitcher theme={theme} label={monthLabel(monthKey)} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} />
 
-        {/* Überschuss hero */}
-        <View style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 4, alignItems: 'center' }}>
-          <Text style={{ fontSize: 13, color: theme.textMuted }}>Überschuss diesen Monat</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2, marginTop: 4 }}>
-            <Text style={{ fontSize: 26, color: theme.textMuted, fontWeight: '600', marginBottom: 8 }}>
-              {metrics.ueberschuss < 0 ? '−' : ''}
+        {/* Hero: Überschuss als prominenteste Aktion */}
+        <View style={{ paddingHorizontal: space.md, paddingTop: space.md }}>
+          <HeroCard theme={theme} accent={ueberschussDir === 'out' ? theme.expense : theme.accent}>
+            <Text style={{ fontSize: type.caption, color: theme.textMuted, fontWeight: weight.semibold, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+              Überschuss · {monthLabel(monthKey, { short: true })}
             </Text>
-            <Text style={{ fontSize: 52, fontWeight: '700', letterSpacing: -1.5, lineHeight: 58, color: metrics.ueberschuss < 0 ? theme.expense : theme.text }}>{whole}</Text>
-            <Text style={{ fontSize: 26, color: theme.textMuted, fontWeight: '600', marginBottom: 8 }}>,{dec} €</Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <View style={{ backgroundColor: theme.purple + '24', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
-              <Text style={{ color: theme.purple, fontSize: 12, fontWeight: '600' }}>
-                Sparquote {Math.round(metrics.sparquote * 100)}%
-              </Text>
+            <View style={{ marginTop: space.xs }}>
+              <MoneyAmount
+                theme={theme}
+                amount={metrics.ueberschuss}
+                direction={ueberschussDir}
+                size="display"
+                showSymbol={false}
+              />
             </View>
-            <View style={{ backgroundColor: theme.surface, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
-              <Text style={{ color: theme.textMuted, fontSize: 12, fontWeight: '600' }}>
-                Frei: {formatEuro(metrics.freierUeberschuss, { decimals: 0 })}
+            {/* Sub-Info: nur EIN Wert sichtbar — Sparquote als Untertitel */}
+            {metrics.einnahmen > 0 && metrics.invest > 0 && (
+              <Text style={{ fontSize: type.small, color: theme.textMuted, marginTop: space.xs }}>
+                Davon {Math.round(metrics.sparquote * 100)} % gespart · Frei: {formatEuro(metrics.freierUeberschuss, { decimals: 0 })}
               </Text>
-            </View>
-          </View>
+            )}
+            {metrics.einnahmen > 0 && metrics.invest === 0 && (
+              <Text style={{ fontSize: type.small, color: theme.textMuted, marginTop: space.xs }}>
+                Frei verfügbar: {formatEuro(metrics.freierUeberschuss, { decimals: 0 })}
+              </Text>
+            )}
+          </HeroCard>
         </View>
 
-        {/* Metric tiles */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        {/* Vermögen-Tile direkt darunter — wenn Konten existieren */}
+        <VermoegenTile />
+
+        {/* Metric tiles 2x2 — symbolisiert + delta */}
+        <View style={{ paddingHorizontal: space.md, paddingTop: space.md, flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
           {tiles.map(t => (
-            <View key={t.label} style={{ width: '47.6%', flexGrow: 1, backgroundColor: theme.surface, borderRadius: 20, padding: 16 }}>
-              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: t.col + '22', alignItems: 'center', justifyContent: 'center' }}>
-                <CFIcon name={t.icon as any} size={14} color={t.col} stroke={2.4} />
+            <View
+              key={t.label}
+              accessibilityLabel={`${t.label}: ${formatEuro(t.val, { decimals: 0 })}`}
+              style={{ width: '48%', flexGrow: 1, backgroundColor: theme.surface, borderRadius: radius.lg, padding: space.md }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: t.col + '22', alignItems: 'center', justifyContent: 'center' }}>
+                  <CFIcon name={t.icon as any} size={14} color={t.col} stroke={2.4} />
+                </View>
+                <Text style={{ fontSize: type.small, color: theme.textMuted }}>{t.label}</Text>
               </View>
-              <Text style={{ marginTop: 12, fontSize: 21, fontWeight: '700', letterSpacing: -0.5, color: theme.text }}>
+              <Text style={{ marginTop: space.xs, fontSize: type.title, fontWeight: weight.bold, letterSpacing: -0.5, color: theme.text }}>
                 {formatEuro(t.val, { decimals: 0 })}
               </Text>
-              <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>{t.label}</Text>
               {compare.previous ? <Delta theme={theme} value={t.delta} invert={t.invert} /> : null}
             </View>
           ))}
         </View>
 
+        {/* Quick actions — 2x2 statt 1x4 (besseres Touch-Target) */}
+        <View style={{ paddingHorizontal: space.md, paddingTop: space.md, gap: space.xs }}>
+          <View style={{ flexDirection: 'row', gap: space.xs }}>
+            <ActionTile theme={theme} icon="coin" label="Bargeld" color={theme.mint}
+              onPress={() => navigation.navigate('Cash')}
+              accessibilityLabel="Bargeld eintragen" />
+            <ActionTile theme={theme} icon="chart" label="Jahr" color={theme.blue}
+              onPress={() => navigation.navigate('Year')}
+              accessibilityLabel="Jahresübersicht öffnen" />
+          </View>
+          <View style={{ flexDirection: 'row', gap: space.xs }}>
+            <ActionTile theme={theme} icon="home" label="Immobilien" color={theme.orange}
+              onPress={() => navigation.navigate('PropertyList')}
+              accessibilityLabel="Immobilien öffnen" />
+            <ActionTile theme={theme} icon="note" label="Steuer" color={theme.accent}
+              onPress={() => navigation.navigate('SteuerHome')}
+              accessibilityLabel="Steuer öffnen" />
+          </View>
+        </View>
+
         {/* Category breakdown */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontSize: 17, fontWeight: '700', color: theme.text }}>Ausgaben nach Kategorie</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Manage')}>
-            <Text style={{ fontSize: 13, color: theme.accent, fontWeight: '600' }}>Verwalten</Text>
+        <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xs, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text accessibilityRole="header" style={{ fontSize: type.bodyLg, fontWeight: weight.bold, color: theme.text }}>Ausgaben nach Kategorie</Text>
+          <TouchableOpacity
+            accessibilityRole="link"
+            accessibilityLabel="Zu Verwalten wechseln"
+            onPress={() => navigation.navigate('Manage')}
+          >
+            <Text style={{ fontSize: type.small, color: theme.accent, fontWeight: weight.semibold }}>Verwalten</Text>
           </TouchableOpacity>
         </View>
-        <View style={{ marginHorizontal: 16, backgroundColor: theme.surface, borderRadius: 20, padding: 16 }}>
+        <View style={{ marginHorizontal: space.md, backgroundColor: theme.surface, borderRadius: radius.lg, padding: space.md }}>
           {donut.length === 0 ? (
-            <View style={{ padding: 16, alignItems: 'center' }}>
-              <Text style={{ color: theme.textMuted, fontSize: 14 }}>Noch keine Ausgaben in {monthLabel(monthKey, { short: true })}</Text>
+            <View style={{ padding: space.md, alignItems: 'center' }}>
+              <Text style={{ color: theme.textMuted, fontSize: type.small }}>
+                Noch keine Ausgaben in {monthLabel(monthKey, { short: true })}
+              </Text>
             </View>
           ) : (
             <>
@@ -155,12 +197,12 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* Überschuss-Trend */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8 }}>
-          <Text style={{ fontSize: 17, fontWeight: '700', color: theme.text }}>Überschuss-Trend</Text>
-          <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>Letzte 12 Monate</Text>
+        {/* Trend */}
+        <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xs }}>
+          <Text accessibilityRole="header" style={{ fontSize: type.bodyLg, fontWeight: weight.bold, color: theme.text }}>Überschuss-Trend</Text>
+          <Text style={{ fontSize: type.caption, color: theme.textMuted, marginTop: 2 }}>Letzte 12 Monate</Text>
         </View>
-        <View style={{ marginHorizontal: 16, backgroundColor: theme.surface, borderRadius: 20, padding: 14 }}>
+        <View style={{ marginHorizontal: space.md, backgroundColor: theme.surface, borderRadius: radius.lg, padding: space.md }}>
           <TrendLineChart
             theme={theme}
             width={TREND_W}
@@ -168,7 +210,7 @@ export default function DashboardScreen() {
             points={trend.map(p => ({ label: p.label, value: p.ueberschuss }))}
             fmt={v => formatEuro(v, { decimals: 0, sign: true })}
           />
-          <View style={{ height: 1, backgroundColor: theme.border, marginVertical: 12 }} />
+          <View style={{ height: 1, backgroundColor: theme.border, marginVertical: space.sm }} />
           <TrendLineChart
             theme={theme}
             width={TREND_W}
@@ -176,41 +218,6 @@ export default function DashboardScreen() {
             points={trend.map(p => ({ label: p.label, value: Math.round(p.sparquote * 100) }))}
             fmt={v => `${Math.round(v)} % Sparquote`}
           />
-        </View>
-
-        {/* Vermögen-Tile */}
-        <VermoegenTile />
-
-        {/* Quick actions */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 16, flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Cash')}
-            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 14, alignItems: 'center', gap: 6 }}
-          >
-            <CFIcon name="coin" size={20} color={theme.mint} />
-            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>Bargeld</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Year')}
-            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 14, alignItems: 'center', gap: 6 }}
-          >
-            <CFIcon name="chart" size={20} color={theme.blue} />
-            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>Jahr</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('PropertyList')}
-            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 14, alignItems: 'center', gap: 6 }}
-          >
-            <CFIcon name="home" size={20} color={theme.orange} />
-            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>Immobilien</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('SteuerHome')}
-            style={{ flex: 1, backgroundColor: theme.surface, borderRadius: 18, padding: 14, alignItems: 'center', gap: 6 }}
-          >
-            <CFIcon name="note" size={20} color={theme.accent} />
-            <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>Steuer</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -225,25 +232,36 @@ function VermoegenTile() {
   if (konten.length === 0) return null;
   const prevVerm = vermoegenFor(data, addMonthsKey(monthKey, -1)).gesamt;
   const delta = verm.gesamt - prevVerm;
+  const deltaDir: 'in' | 'out' | 'neutral' = delta > 0 ? 'in' : delta < 0 ? 'out' : 'neutral';
+
   return (
-    <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+    <View style={{ paddingHorizontal: space.md, paddingTop: space.sm }}>
       <TouchableOpacity
         onPress={() => navigation.navigate('Konten')}
-        style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
+        accessibilityRole="button"
+        accessibilityLabel={`Vermögensübersicht öffnen. Gesamtvermögen ${formatEuro(verm.gesamt, { decimals: 0 })}`}
+        style={{
+          backgroundColor: theme.surface, borderRadius: radius.lg,
+          padding: space.md, flexDirection: 'row', alignItems: 'center', gap: space.md,
+        }}
       >
-        <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: theme.accent + '22', alignItems: 'center', justifyContent: 'center' }}>
-          <CFIcon name="wallet" size={18} color={theme.accent} stroke={2.4} />
+        <View style={{ width: touch.min, height: touch.min, borderRadius: radius.md, backgroundColor: theme.accent + '22', alignItems: 'center', justifyContent: 'center' }}>
+          <CFIcon name="wallet" size={20} color={theme.accent} stroke={2.4} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 11.5, color: theme.textMuted, fontWeight: '600', letterSpacing: 0.4 }}>GESAMTVERMÖGEN</Text>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: theme.text, marginTop: 2 }}>{formatEuro(verm.gesamt, { decimals: 0 })}</Text>
-          {prevVerm > 0 && (
-            <Text style={{ fontSize: 11.5, color: delta >= 0 ? theme.income : theme.expense, marginTop: 2, fontWeight: '700' }}>
-              {delta >= 0 ? '↑' : '↓'} {formatEuro(Math.abs(delta), { decimals: 0 })} vs. Vormonat
+          <Text style={{ fontSize: type.caption, color: theme.textMuted, fontWeight: weight.semibold, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+            Gesamtvermögen
+          </Text>
+          <Text style={{ fontSize: type.title, fontWeight: weight.bold, color: theme.text, marginTop: 2 }}>
+            {formatEuro(verm.gesamt, { decimals: 0 })}
+          </Text>
+          {prevVerm > 0 && delta !== 0 && (
+            <Text style={{ fontSize: type.caption, color: deltaDir === 'in' ? theme.income : theme.expense, marginTop: 2, fontWeight: weight.semibold }}>
+              {delta > 0 ? '↑' : '↓'} {formatEuro(Math.abs(delta), { decimals: 0 })} vs. Vormonat
             </Text>
           )}
         </View>
-        <CFIcon name="chevron" size={14} color={theme.textDim} />
+        <CFIcon name="chevron" size={16} color={theme.textDim} />
       </TouchableOpacity>
     </View>
   );

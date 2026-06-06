@@ -3,11 +3,11 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../data/AppContext';
-import { SECTIONS, MANAGE_ORDER } from '../data/sections';
+import { SECTIONS, SectionKey, MANAGE_ORDER } from '../data/sections';
 import { monthLabel } from '../data/model';
 import { formatEuro, contractMonthAmount } from '../data/calc';
 import CFIcon from '../components/CFIcon';
-import { MonthSwitcher } from '../components/UI';
+import { MonthSwitcher, MoneyAmount, space, type, weight, radius, touch } from '../components/UI';
 
 export default function ManageScreen() {
   const { theme, snapshot, monthKey, shiftMonth } = useApp();
@@ -22,7 +22,6 @@ export default function ManageScreen() {
     const arr = (snapshot as any)[key] as { amount: number }[];
     let count = arr.length;
     let total = arr.reduce((a, x) => a + (x.amount || 0), 0);
-    // Bargeld zählt mit (Ausgaben → variable Kosten, Einnahmen → Einnahmen)
     if (key === 'variableExpenses' || key === 'income') {
       const wantOut = key === 'variableExpenses';
       const cash = snapshot.cash.filter(c => (c.direction === 'out') === wantOut);
@@ -36,97 +35,124 @@ export default function ManageScreen() {
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <StatusBar barStyle={theme.dark ? 'light-content' : 'dark-content'} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
-        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, paddingBottom: 4 }}>
-          <Text style={{ fontSize: 32, fontWeight: '700', letterSpacing: -0.6, color: theme.text }}>Verwalten</Text>
+        <View style={{ paddingTop: insets.top + space.md, paddingHorizontal: space.lg, paddingBottom: space.xxs }}>
+          <Text
+            accessibilityRole="header"
+            style={{ fontSize: type.heading, fontWeight: weight.bold, letterSpacing: -0.6, color: theme.text }}
+          >
+            Verwalten
+          </Text>
         </View>
         <MonthSwitcher theme={theme} label={monthLabel(monthKey)} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} />
 
-        <View style={{ paddingHorizontal: 16, paddingTop: 16, gap: 10 }}>
+        {/* Sektionsgruppe: Monatliche Posten */}
+        <View style={{ paddingHorizontal: space.md, paddingTop: space.md, gap: space.xs }}>
           {MANAGE_ORDER.map(key => {
             const s = SECTIONS[key];
             const { count, total } = sumOf(key);
+            const dir = s.direction === 'income' ? 'in' : s.direction === 'expense' ? 'out' : 'neutral';
             return (
-              <TouchableOpacity
+              <ManageCard
                 key={key}
+                theme={theme}
+                icon={s.icon}
+                color={s.color}
+                title={s.title}
+                subtitle={`${count} Posten${s.carriedForward ? ' · wird übertragen' : ' · monatlich neu'}`}
                 onPress={() => navigation.navigate('List', { section: key })}
-                style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
-              >
-                <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: s.color + '22', alignItems: 'center', justifyContent: 'center' }}>
-                  <CFIcon name={s.icon as any} size={20} color={s.color} stroke={2.2} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15.5, fontWeight: '700', color: theme.text }}>{s.title}</Text>
-                  <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>
-                    {count} Posten{s.carriedForward ? ' · wird übertragen' : ' · monatlich neu'}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: theme.text }}>{formatEuro(total, { decimals: 0 })}</Text>
-                  <CFIcon name="chevron" size={14} color={theme.textDim} stroke={2.2} />
-                </View>
-              </TouchableOpacity>
+                rightAmount={total}
+                amountDirection={dir as any}
+                accessibilityLabel={`${s.title}: ${count} Posten, Summe ${formatEuro(total, { decimals: 0 })}`}
+              />
             );
           })}
+        </View>
 
-          <TouchableOpacity
+        {/* Sektionsgruppe: Eigene Bereiche */}
+        <View style={{ paddingHorizontal: space.md, paddingTop: space.md, gap: space.xs }}>
+          <ManageCard
+            theme={theme}
+            icon="wallet"
+            color={theme.accent}
+            title="Konten & Vermögen"
+            subtitle="Girokonto, Tagesgeld, Depot · monatlicher Stand"
             onPress={() => navigation.navigate('Konten')}
-            style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 6 }}
-          >
-            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.accent + '22', alignItems: 'center', justifyContent: 'center' }}>
-              <CFIcon name="wallet" size={20} color={theme.accent} stroke={2.2} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15.5, fontWeight: '700', color: theme.text }}>Konten & Vermögen</Text>
-              <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>Girokonto, Tagesgeld, Depot · monatlicher Stand</Text>
-            </View>
-            <CFIcon name="chevron" size={14} color={theme.textDim} stroke={2.2} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
+            accessibilityLabel="Konten und Vermögen öffnen"
+          />
+          <ManageCard
+            theme={theme}
+            icon="coin"
+            color={theme.mint}
+            title="Bargeld"
+            subtitle={`${snapshot.cash.length} Einträge · ${formatEuro(snapshot.cash.reduce((a, c) => a + c.amount, 0), { decimals: 0 })}`}
             onPress={() => navigation.navigate('BargeldList')}
-            style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
-          >
-            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.mint + '22', alignItems: 'center', justifyContent: 'center' }}>
-              <CFIcon name="coin" size={20} color={theme.mint} stroke={2.2} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15.5, fontWeight: '700', color: theme.text }}>Bargeld</Text>
-              <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>
-                {snapshot.cash.length} Einträge · {formatEuro(snapshot.cash.reduce((a, c) => a + c.amount, 0), { decimals: 0 })}
-              </Text>
-            </View>
-            <CFIcon name="chevron" size={14} color={theme.textDim} stroke={2.2} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
+            accessibilityLabel="Bargeld-Liste öffnen"
+          />
+          <ManageCard
+            theme={theme}
+            icon="home"
+            color={theme.orange}
+            title="Immobilien"
+            subtitle="Separater Bereich · eigener PDF-Export"
             onPress={() => navigation.navigate('PropertyList')}
-            style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
-          >
-            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.orange + '22', alignItems: 'center', justifyContent: 'center' }}>
-              <CFIcon name="home" size={20} color={theme.orange} stroke={2.2} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15.5, fontWeight: '700', color: theme.text }}>Immobilien</Text>
-              <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>Separater Bereich · eigener PDF-Export</Text>
-            </View>
-            <CFIcon name="chevron" size={14} color={theme.textDim} stroke={2.2} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
+            accessibilityLabel="Immobilien öffnen"
+          />
+          <ManageCard
+            theme={theme}
+            icon="note"
+            color={theme.accent}
+            title="Steuer"
+            subtitle="Werbungskosten & Betriebsausgaben · separate PDFs für Steuerberater"
             onPress={() => navigation.navigate('SteuerHome')}
-            style={{ backgroundColor: theme.surface, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
-          >
-            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: theme.accent + '22', alignItems: 'center', justifyContent: 'center' }}>
-              <CFIcon name="note" size={20} color={theme.accent} stroke={2.2} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15.5, fontWeight: '700', color: theme.text }}>Steuer</Text>
-              <Text style={{ fontSize: 12.5, color: theme.textMuted, marginTop: 2 }}>Werbungskosten & Betriebsausgaben · separate PDFs für Steuerberater</Text>
-            </View>
-            <CFIcon name="chevron" size={14} color={theme.textDim} stroke={2.2} />
-          </TouchableOpacity>
+            accessibilityLabel="Steuer-Bereich öffnen"
+          />
         </View>
       </ScrollView>
     </View>
+  );
+}
+
+function ManageCard({
+  theme, icon, color, title, subtitle, onPress, rightAmount, amountDirection, accessibilityLabel,
+}: {
+  theme: any;
+  icon: string;
+  color: string;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  rightAmount?: number;
+  amountDirection?: 'in' | 'out' | 'neutral';
+  accessibilityLabel: string;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={{
+        backgroundColor: theme.surface,
+        borderRadius: radius.lg,
+        padding: space.md,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space.sm,
+        minHeight: 64,
+      }}
+    >
+      <View style={{ width: 44, height: 44, borderRadius: radius.md, backgroundColor: color + '22', alignItems: 'center', justifyContent: 'center' }}>
+        <CFIcon name={icon as any} size={20} color={color} stroke={2.2} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: type.body, fontWeight: weight.bold, color: theme.text }}>{title}</Text>
+        <Text style={{ fontSize: type.caption, color: theme.textMuted, marginTop: 2 }}>{subtitle}</Text>
+      </View>
+      <View style={{ flexDirection: 'row', gap: space.xs, alignItems: 'center' }}>
+        {rightAmount !== undefined && (
+          <MoneyAmount theme={theme} amount={rightAmount} direction={amountDirection ?? 'neutral'} size="small" decimals={0} showSymbol={false} />
+        )}
+        <CFIcon name="chevron" size={14} color={theme.textDim} stroke={2.2} />
+      </View>
+    </TouchableOpacity>
   );
 }

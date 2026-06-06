@@ -36,7 +36,13 @@ export default function PropertyListScreen() {
 
         {props.length === 0 ? (
           <View style={{ marginHorizontal: 16, backgroundColor: theme.surface, borderRadius: 18 }}>
-            <EmptyState theme={theme} text="Noch keine Immobilie — oben + tippen" />
+            <EmptyState
+              theme={theme}
+              icon="home"
+              text="Noch keine Immobilie angelegt"
+              ctaLabel="+ Erste Immobilie anlegen"
+              onCtaPress={() => navigation.navigate('PropertyEdit', {})}
+            />
           </View>
         ) : (
           <View style={{ paddingHorizontal: 16, gap: 12 }}>

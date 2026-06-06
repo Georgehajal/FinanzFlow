@@ -7,7 +7,7 @@ import { SECTIONS, SectionKey } from '../data/sections';
 import { monthLabel, categoryDef, Vertrag } from '../data/model';
 import { formatEuro, contractMonthAmount, contractCancelInfo } from '../data/calc';
 import CFIcon from '../components/CFIcon';
-import { TopBar, EmptyState, MonthSwitcher } from '../components/UI';
+import { TopBar, EmptyState, MonthSwitcher, MoneyAmount, IconButton, space, type, weight, radius, touch } from '../components/UI';
 
 export default function ListScreen() {
   const { theme, snapshot, monthKey, shiftMonth, deleteItem, deleteContract, deleteCash } = useApp();
@@ -55,12 +55,14 @@ export default function ListScreen() {
         title={meta.title}
         onBack={() => navigation.goBack()}
         right={
-          <TouchableOpacity
+          <IconButton
+            theme={theme}
+            icon="plus"
             onPress={() => openEdit()}
-            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <CFIcon name="plus" size={18} color={theme.accentInk} stroke={2.6} />
-          </TouchableOpacity>
+            accessibilityLabel={`Neuen Eintrag zu ${meta.title} hinzufügen`}
+            bg={theme.accent}
+            color={theme.accentInk}
+          />
         }
       />
 
@@ -72,9 +74,15 @@ export default function ListScreen() {
           </Text>
         </View>
 
-        <View style={{ marginHorizontal: 16, backgroundColor: theme.surface, borderRadius: 18, overflow: 'hidden' }}>
+        <View style={{ marginHorizontal: space.md, backgroundColor: theme.surface, borderRadius: radius.lg, overflow: 'hidden' }}>
           {items.length === 0 ? (
-            <EmptyState theme={theme} text="Noch keine Posten — oben + tippen" />
+            <EmptyState
+              theme={theme}
+              icon={meta.icon}
+              text={`Noch keine ${meta.title}`}
+              ctaLabel={`+ Ersten Eintrag hinzufügen`}
+              onCtaPress={() => openEdit()}
+            />
           ) : items.map((it, i) => {
             const isLast = i === items.length - 1;
             let sub = '';
@@ -93,23 +101,46 @@ export default function ListScreen() {
               const def = categoryDef(meta.direction === 'income' ? 'income' : 'expense', it.category);
               sub = def.label;
             }
+            const dir = meta.direction === 'income' ? 'in' : meta.direction === 'expense' ? 'out' : 'neutral';
             return (
-              <View key={it.id} style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: isLast ? 0 : 0.5, borderBottomColor: theme.border }}>
+              <View
+                key={it.id}
+                style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: isLast ? 0 : 0.5, borderBottomColor: theme.border, minHeight: touch.min }}
+              >
                 <TouchableOpacity
                   onPress={() => openEdit(it.id)}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingLeft: 14 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${it.name}, ${formatEuro(amount, { decimals: 0 })}${sub ? `, ${sub}` : ''}${warn ? `, Warnung: ${warn}` : ''}. Tippen zum Bearbeiten.`}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.sm, paddingLeft: space.sm + 2, minHeight: touch.min }}
                 >
-                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: meta.color + '22', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 36, height: 36, borderRadius: radius.md - 2, backgroundColor: meta.color + '22', alignItems: 'center', justifyContent: 'center' }}>
                     <CFIcon name={meta.icon as any} size={16} color={meta.color} stroke={2.2} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: theme.text }}>{it.name}</Text>
-                    {sub ? <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 1 }}>{sub}</Text> : null}
-                    {warn ? <Text style={{ fontSize: 12, color: theme.expense, marginTop: 1, fontWeight: '600' }}>{warn}</Text> : null}
+                    <Text style={{ fontSize: type.body, fontWeight: weight.semibold, color: theme.text }}>{it.name}</Text>
+                    {sub ? <Text style={{ fontSize: type.caption, color: theme.textMuted, marginTop: 1 }}>{sub}</Text> : null}
+                    {warn ? (
+                      <Text style={{ fontSize: type.caption, color: theme.expense, marginTop: 1, fontWeight: weight.semibold }}>
+                        ⚠ {warn}
+                      </Text>
+                    ) : null}
                   </View>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: theme.text }}>{formatEuro(amount, { decimals: 0 })}</Text>
+                  <MoneyAmount
+                    theme={theme}
+                    amount={amount}
+                    direction={dir}
+                    size="body"
+                    decimals={0}
+                    showSymbol={false}
+                  />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => remove(it.id, it.name)} style={{ padding: 14 }}>
+                <TouchableOpacity
+                  onPress={() => remove(it.id, it.name)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${it.name} löschen`}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ width: touch.min, height: touch.min, alignItems: 'center', justifyContent: 'center' }}
+                >
                   <CFIcon name="close" size={16} color={theme.textDim} />
                 </TouchableOpacity>
               </View>
@@ -119,31 +150,45 @@ export default function ListScreen() {
 
         {cashHere && (
           <>
-            <View style={{ paddingHorizontal: 20, paddingTop: 22, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 13, color: theme.textMuted, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xs, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text
+                accessibilityRole="header"
+                style={{ fontSize: type.caption, color: theme.textMuted, fontWeight: weight.semibold, textTransform: 'uppercase', letterSpacing: 0.5 }}
+              >
                 Bargeld {cashHere === 'out' ? '(Ausgaben)' : '(Einnahmen)'}
               </Text>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text }}>{formatEuro(cashTotal, { decimals: 0 })}</Text>
+              <MoneyAmount theme={theme} amount={cashTotal} direction={cashHere === 'in' ? 'in' : 'out'} size="small" decimals={0} showSymbol={false} />
             </View>
-            <View style={{ marginHorizontal: 16, backgroundColor: theme.surface, borderRadius: 18, overflow: 'hidden' }}>
+            <View style={{ marginHorizontal: space.md, backgroundColor: theme.surface, borderRadius: radius.lg, overflow: 'hidden' }}>
               {cashEntries.length === 0 ? (
                 <EmptyState theme={theme} text="Kein Bargeld diesen Monat" />
               ) : cashEntries.map((c, i) => (
-                <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: i === cashEntries.length - 1 ? 0 : 0.5, borderBottomColor: theme.border }}>
+                <View
+                  key={c.id}
+                  style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: i === cashEntries.length - 1 ? 0 : 0.5, borderBottomColor: theme.border, minHeight: touch.min }}
+                >
                   <TouchableOpacity
-                    onPress={() => navigation.navigate('Cash')}
-                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingLeft: 14 }}
+                    onPress={() => navigation.navigate('Cash', { editCashId: c.id, editMonthKey: monthKey })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Bargeld ${c.name}, ${formatEuro(c.amount, { decimals: 0 })}. Tippen zum Bearbeiten.`}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.sm, paddingLeft: space.sm + 2 }}
                   >
-                    <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: theme.mint + '22', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 36, height: 36, borderRadius: radius.md - 2, backgroundColor: theme.mint + '22', alignItems: 'center', justifyContent: 'center' }}>
                       <CFIcon name="coin" size={16} color={theme.mint} stroke={2.2} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '600', color: theme.text }}>{c.name}</Text>
-                      <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 1 }}>Bargeld</Text>
+                      <Text style={{ fontSize: type.body, fontWeight: weight.semibold, color: theme.text }}>{c.name}</Text>
+                      <Text style={{ fontSize: type.caption, color: theme.textMuted, marginTop: 1 }}>Bargeld</Text>
                     </View>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: theme.text }}>{formatEuro(c.amount, { decimals: 0 })}</Text>
+                    <MoneyAmount theme={theme} amount={c.amount} direction={c.direction === 'in' ? 'in' : 'out'} size="body" decimals={0} showSymbol={false} />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => removeCash(c.id, c.name)} style={{ padding: 14 }}>
+                  <TouchableOpacity
+                    onPress={() => removeCash(c.id, c.name)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Bargeld ${c.name} löschen`}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{ width: touch.min, height: touch.min, alignItems: 'center', justifyContent: 'center' }}
+                  >
                     <CFIcon name="close" size={16} color={theme.textDim} />
                   </TouchableOpacity>
                 </View>

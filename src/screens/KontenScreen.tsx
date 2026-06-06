@@ -45,7 +45,13 @@ export default function KontenScreen() {
         <View style={{ paddingHorizontal: 16, gap: 10 }}>
           {konten.length === 0 ? (
             <View style={{ backgroundColor: theme.surface, borderRadius: 16 }}>
-              <EmptyState theme={theme} text={'Noch kein Konto — oben „+" tippen'} />
+              <EmptyState
+                theme={theme}
+                icon="wallet"
+                text="Noch kein Konto angelegt"
+                ctaLabel="+ Erstes Konto anlegen"
+                onCtaPress={() => navigation.navigate('KontoEdit')}
+              />
             </View>
           ) : verm.details.map(({ konto, stand, isFallback }) => (
             <View key={konto.id} style={{ backgroundColor: theme.surface, borderRadius: 16, padding: 14 }}>

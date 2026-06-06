@@ -8,7 +8,7 @@ import {
   newId, Vertrag, Posten,
   SteuerBereich, STEUER_KATEGORIEN_NICHT_SELBST, STEUER_KATEGORIEN_SELBST, STEUER_BEREICH_KURZ,
 } from '../data/model';
-import { TopBar, SectionLabel, Card, FieldRow, TextField, PrimaryButton, Pill } from '../components/UI';
+import { TopBar, SectionLabel, Card, FieldRow, TextField, MoneyField, PrimaryButton, Pill } from '../components/UI';
 
 const num = (s: string) => {
   const n = parseFloat(s.replace(',', '.'));
@@ -83,8 +83,8 @@ export default function ItemEditScreen() {
           <FieldRow theme={theme} label="Name">
             <TextField theme={theme} value={name} onChangeText={setName} placeholder="z. B. Gehalt" />
           </FieldRow>
-          <FieldRow theme={theme} label={meta.isContract && interval === 'yearly' ? 'Betrag / Jahr' : 'Betrag'} last={!meta.categories && !meta.isContract && section !== 'invest'}>
-            <TextField theme={theme} value={amount} onChangeText={setAmount} placeholder="0" keyboardType="decimal-pad" />
+          <FieldRow theme={theme} label={meta.isContract && interval === 'yearly' ? 'Betrag / Jahr' : 'Betrag (€)'} last={!meta.categories && !meta.isContract && section !== 'invest'}>
+            <MoneyField theme={theme} value={amount} onChangeText={setAmount} accessibilityLabel="Betrag in Euro" />
           </FieldRow>
           {(section === 'invest') && (
             <FieldRow theme={theme} label="Notiz" last>
