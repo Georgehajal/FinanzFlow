@@ -5,9 +5,10 @@ import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../data/AppContext';
 import { exportBackup, importBackup } from '../data/backupUtils';
 import { isBiometryAvailable, supportedTypeLabel } from '../data/authUtils';
+import { THEME_PRESETS, presetById, ThemeId } from '../theme/tokens';
 import CFIcon from '../components/CFIcon';
 
-const ACCENT_SWATCHES = ['#B8F12C', '#5AC8FA', '#FF9F0A', '#BF5AF2', '#FF453A', '#34C759'];
+// ACCENT_SWATCHES war veraltet — Akzent kommt jetzt aus themeId / THEME_PRESETS
 
 export default function SettingsScreen() {
   const { theme, settings, updateSettings, data, replaceAllData } = useApp();
@@ -114,16 +115,36 @@ export default function SettingsScreen() {
           <View style={{ padding: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 }}>
               <IconBox icon="star" color={theme.yellow} />
-              <Text style={{ fontSize: 15.5, color: theme.text }}>Akzentfarbe</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15.5, color: theme.text }}>Farbschema</Text>
+                <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 2 }}>
+                  {presetById(settings.themeId).label} · {presetById(settings.themeId).description}
+                </Text>
+              </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: 12, paddingLeft: 42 }}>
-              {ACCENT_SWATCHES.map(c => (
-                <TouchableOpacity
-                  key={c}
-                  onPress={() => updateSettings({ accent: c })}
-                  style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c, borderWidth: settings.accent === c ? 3 : 0, borderColor: theme.text }}
-                />
-              ))}
+            <View style={{ flexDirection: 'row', gap: 12, paddingLeft: 42, flexWrap: 'wrap' }}>
+              {THEME_PRESETS.map(p => {
+                const active = (settings.themeId ?? 'lime') === p.id;
+                const swatch = settings.dark ? p.accentDark : p.accentLight;
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => updateSettings({ themeId: p.id as ThemeId, accent: swatch })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Farbschema ${p.label}`}
+                    accessibilityState={{ selected: active }}
+                    style={{
+                      width: 44, height: 44, borderRadius: 22,
+                      backgroundColor: swatch,
+                      borderWidth: active ? 3 : 0,
+                      borderColor: theme.text,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {active && <CFIcon name="check" size={18} color={p.inkOnAccent} stroke={2.6} />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         </Section>

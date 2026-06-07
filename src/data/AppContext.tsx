@@ -11,7 +11,7 @@ import {
 import {
   computeMetrics, compareToPrevMonth, MonthMetrics, MetricsDelta,
 } from './calc';
-import { darkTheme, lightTheme, Theme } from '../theme/tokens';
+import { buildTheme, Theme } from '../theme/tokens';
 
 // Listen-Bereiche, die generisch mit Posten arbeiten.
 // 'income' und 'invest' nutzen den recurring-Toggle (true = forward-propagate);
@@ -106,12 +106,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const settings = data?.settings ?? { dark: true, accent: '#B8F12C', userName: '', userEmail: '' };
 
-  const theme: Theme = {
-    ...(settings.dark ? darkTheme : lightTheme),
-    accent: settings.accent,
-    accentInk: settings.dark ? '#0E1A00' : '#FFFFFF',
-    income: settings.accent,
-  };
+  // Theme aus Preset + Dark/Light Modus aufbauen (income/expense unabhängig vom Akzent)
+  const theme: Theme = buildTheme(settings.themeId, settings.dark);
 
   // Schreibt eine Mutation auf eine Kopie der Daten, persistiert und setzt State.
   const mutate = useCallback(async (fn: (d: FinanzData) => void) => {

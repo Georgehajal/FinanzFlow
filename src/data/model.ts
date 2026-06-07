@@ -355,18 +355,22 @@ export interface Immobilie {
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
+export type ThemeId = 'lime' | 'indigo' | 'petrol' | 'royal' | 'amber';
+
 export interface FinanzSettings {
   dark: boolean;
-  accent: string;
+  accent: string;                       // veraltet — wird aus themeId abgeleitet
+  themeId?: ThemeId;                    // 5 Theme-Presets (lime/indigo/petrol/royal/amber)
   userName: string;
   userEmail: string;
-  cashShortcutMode?: 'bar' | 'bank';   // letzter Modus des Schnellknopfs
-  appLockEnabled?: boolean;             // App mit Face ID / PIN schützen
+  cashShortcutMode?: 'bar' | 'bank';
+  appLockEnabled?: boolean;
 }
 
 export const DEFAULT_SETTINGS: FinanzSettings = {
   dark: true,
   accent: '#B8F12C',
+  themeId: 'lime',
   userName: 'Mein Haushalt',
   userEmail: '',
   cashShortcutMode: 'bar',

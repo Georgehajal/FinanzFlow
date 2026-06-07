@@ -3,11 +3,11 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar, Dimensions } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../data/AppContext';
-import { formatEuro, expenseByCategory, monthsSeries, vermoegenFor } from '../data/calc';
+import { formatEuro, euroParts, expenseByCategory, monthsSeries, vermoegenFor } from '../data/calc';
 import { monthLabel, categoryDef, addMonthsKey } from '../data/model';
 import CFIcon from '../components/CFIcon';
 import {
-  HeroCard, ActionTile, IconButton, MoneyAmount, MonthSwitcher,
+  ActionTile, IconButton, MoneyAmount, MonthSwitcher,
   space, type, weight, radius, touch, shadow,
 } from '../components/UI';
 import { DonutChart, TrendLineChart, Legend } from '../components/Charts';
@@ -36,8 +36,12 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
 
+  const { whole, dec } = euroParts(metrics.ueberschuss);
   const ueberschussDir: 'in' | 'out' | 'neutral' =
     metrics.ueberschuss > 0 ? 'in' : metrics.ueberschuss < 0 ? 'out' : 'neutral';
+  const heroColor =
+    metrics.ueberschuss < 0 ? theme.expense :
+    metrics.ueberschuss > 0 ? theme.income : theme.text;
 
   const cats = useMemo(() => {
     const map = expenseByCategory(snapshot);
@@ -87,33 +91,37 @@ export default function DashboardScreen() {
         {/* Month switcher (44pt Targets, im UI-Component) */}
         <MonthSwitcher theme={theme} label={monthLabel(monthKey)} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} />
 
-        {/* Hero: Überschuss als prominenteste Aktion */}
-        <View style={{ paddingHorizontal: space.md, paddingTop: space.md }}>
-          <HeroCard theme={theme} accent={ueberschussDir === 'out' ? theme.expense : theme.accent}>
-            <Text style={{ fontSize: type.caption, color: theme.textMuted, fontWeight: weight.semibold, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-              Überschuss · {monthLabel(monthKey, { short: true })}
+        {/* Hero: dramatisch zentriert, mit Pills */}
+        <View
+          accessibilityLabel={`Überschuss diesen Monat: ${formatEuro(metrics.ueberschuss, { decimals: 2, sign: true })}`}
+          style={{ paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xs, alignItems: 'center' }}
+        >
+          <Text style={{ fontSize: type.caption, color: theme.textMuted, fontWeight: weight.semibold, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+            Überschuss · {monthLabel(monthKey, { short: true })}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2, marginTop: space.xs }}>
+            <Text style={{ fontSize: type.heading, color: theme.textMuted, fontWeight: weight.semibold, marginBottom: 8 }}>
+              {metrics.ueberschuss < 0 ? '−' : ''}
             </Text>
-            <View style={{ marginTop: space.xs }}>
-              <MoneyAmount
-                theme={theme}
-                amount={metrics.ueberschuss}
-                direction={ueberschussDir}
-                size="display"
-                showSymbol={false}
-              />
+            <Text style={{ fontSize: 56, fontWeight: weight.bold, letterSpacing: -1.5, lineHeight: 62, color: heroColor }}>
+              {whole}
+            </Text>
+            <Text style={{ fontSize: type.heading, color: theme.textMuted, fontWeight: weight.semibold, marginBottom: 8 }}>
+              ,{dec} €
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.sm, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <View style={{ backgroundColor: theme.purple + '24', paddingHorizontal: space.sm, paddingVertical: space.xxs + 2, borderRadius: radius.pill }}>
+              <Text style={{ color: theme.purple, fontSize: type.caption, fontWeight: weight.semibold }}>
+                Sparquote {Math.round(metrics.sparquote * 100)}%
+              </Text>
             </View>
-            {/* Sub-Info: nur EIN Wert sichtbar — Sparquote als Untertitel */}
-            {metrics.einnahmen > 0 && metrics.invest > 0 && (
-              <Text style={{ fontSize: type.small, color: theme.textMuted, marginTop: space.xs }}>
-                Davon {Math.round(metrics.sparquote * 100)} % gespart · Frei: {formatEuro(metrics.freierUeberschuss, { decimals: 0 })}
+            <View style={{ backgroundColor: theme.surface, paddingHorizontal: space.sm, paddingVertical: space.xxs + 2, borderRadius: radius.pill }}>
+              <Text style={{ color: theme.textMuted, fontSize: type.caption, fontWeight: weight.semibold }}>
+                Frei: {formatEuro(metrics.freierUeberschuss, { decimals: 0 })}
               </Text>
-            )}
-            {metrics.einnahmen > 0 && metrics.invest === 0 && (
-              <Text style={{ fontSize: type.small, color: theme.textMuted, marginTop: space.xs }}>
-                Frei verfügbar: {formatEuro(metrics.freierUeberschuss, { decimals: 0 })}
-              </Text>
-            )}
-          </HeroCard>
+            </View>
+          </View>
         </View>
 
         {/* Vermögen-Tile direkt darunter — wenn Konten existieren */}
